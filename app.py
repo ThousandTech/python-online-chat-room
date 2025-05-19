@@ -1,4 +1,5 @@
-"""测试Falsk
+"""
+测试Falsk
 访问127.0.0.1:5000时返回字符串"Hello, World!"
 """
 from flask import Flask #导入Flask类

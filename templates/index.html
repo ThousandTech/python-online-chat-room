@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>聊天室</title>
+  <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+</head>
+<body>
+  <h2>简单聊天室</h2>
+  <div id="messages" style="border:1px solid #ccc; height:200px; overflow:auto;"></div>
+  <input id="msgInput" autocomplete="off"/><button id="sendBtn">发送</button>
+
+  <script>
+    const socket = io();  // 建立 Socket.IO 连接
+
+    socket.on('connect', () => {
+      console.log('已连接到服务器');
+    });
+
+    socket.on('message', data => {
+      const div = document.getElementById('messages');
+      div.innerHTML += `<p>${data}</p>`;
+      div.scrollTop = div.scrollHeight;
+    });
+
+    const input = document.getElementById('msgInput');
+    const sendBtn = document.getElementById('sendBtn');
+
+    // 发送按钮点击事件
+    sendBtn.onclick = () => {
+      if (!input.value) return;
+      socket.send(input.value);
+      input.value = '';
+    };
+
+    // 新增：按下 Enter 键也发送
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        // 阻止默认换行或提交行为
+        event.preventDefault();
+        sendBtn.click();
+      }
+    });
+  </script>
+</body>
+</html>
