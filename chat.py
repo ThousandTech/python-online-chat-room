@@ -12,7 +12,15 @@ from flask_socketio import SocketIO, send# 导入SocketIO类(给Flask应用加�
 
 app = Flask(__name__)# 创建应用实例'app'
 app.config['SECRET_KEY'] = 'chatroom-secret!'# 为了能在前端安全使用 socket.io，生成一个简单的密钥
-socketio = SocketIO(app, async_mode='eventlet')# 用socket包装应用实例'app'
+
+socketio = SocketIO(
+    app,
+    async_mode='eventlet',# 并发
+    cors_allowed_origins=[
+    "http://81.70.200.217",
+    "https://thousand-tech.com"# Socket.IO域名白名单
+    ]      
+)# 用socket包装应用实例'app'
 
 @app.route('/')#路由装饰器,作用为浏览器试图访问根目录'/'时立刻调用下面的index()函数
 def index():
