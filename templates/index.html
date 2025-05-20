@@ -7,28 +7,45 @@
     <style>
         body {
             font-family: Arial, sans-serif;
+            background: #181828;
+            color: #eee;
         }
         #messages {
-            border: 1px solid #ccc;
+            border: 1px solid #444;
             height: 350px;
             width: 400px;
             overflow-y: auto;
             margin-bottom: 10px;
             padding: 10px;
             list-style: none;
-            background: #f7f7f7;
+            background: #222233;
         }
         #myMessage {
             width: 320px;
             height: 30px;
             font-size: 16px;
+            background: #292940;
+            color: #eee;
+            border: 1px solid #555;
         }
         button {
             height: 34px;
             font-size: 16px;
+            background: #292940;
+            color: #eee;
+            border: 1px solid #555;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #39395c;
+        }
+        #messages li {
+            color: #eee;
+            margin-bottom: 5px;
         }
     </style>
 </head>
+
 <body>
     <h1>聊天室</h1>
     <ul id="messages"></ul>
@@ -37,9 +54,10 @@
         var socket = io();
 
         // 监听收到消息
-        socket.on('message', function(msg){
+        socket.on('message', function(data){
+            // data 现在是一个对象
             var item = document.createElement('li');
-            item.textContent = msg;
+            item.textContent = "[" + data.timestamp + "] " + data.msg;
             document.getElementById('messages').appendChild(item);
             scrollToBottom();
         });

@@ -1,14 +1,6 @@
-"""
-0.0.1版本
-实现:
-    字符串向全体用户广播功能
-    上云
-待实现:
-    消息漫游和消息存储
-    消息时间戳
-"""
 from flask import Flask, render_template# 导入Flask类和render_template函数(解析html)
 from flask_socketio import SocketIO, send# 导入SocketIO类(给Flask应用加上 WebSocket)和send函数(用于广播消息)
+from datetime import datetime   # 导入datetime类进行时间戳处理
 
 app = Flask(__name__)# 创建应用实例'app'
 app.config['SECRET_KEY'] = 'secret!'# 为了能在前端安全使用 socket.io，生成一个简单的密钥
@@ -29,7 +21,7 @@ def index():
 @socketio.on('message')# 注册一个事件处理器，监听所有客户端通过默认事件"message"发送的数据
 def handle_message(msg):
     """
-    此函数收到任意客户端发来的消息，就原封不动地广播给所有连接
+    此函数收到任意客户端发来的消息,就加上时间戳并广播给所有连接
 
     参数:
         msg(str): 客户端发过来的文本内容
@@ -37,7 +29,11 @@ def handle_message(msg):
         无返回值
     """
     print('Received message: ' + msg)# 服务端日志输出
-    send(msg, broadcast=True)# 向所有已连接的客户端广播'msg'
+    message = {
+        'msg': msg,
+        'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    }
+    send(message, broadcast=True)# 向所有已连接的客户端广播'message'
 
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=5000)# 启动 SocketIO 的开发服务器以支持WebSocket，debug=True 会开启热重载和错误追踪
