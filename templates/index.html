@@ -1,46 +1,71 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <title>聊天室</title>
-  <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+    <title>聊天室</title>
+    <meta charset="utf-8">
+    <script src="//cdn.bootcdn.net/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        #messages {
+            border: 1px solid #ccc;
+            height: 350px;
+            width: 400px;
+            overflow-y: auto;
+            margin-bottom: 10px;
+            padding: 10px;
+            list-style: none;
+            background: #f7f7f7;
+        }
+        #myMessage {
+            width: 320px;
+            height: 30px;
+            font-size: 16px;
+        }
+        button {
+            height: 34px;
+            font-size: 16px;
+        }
+    </style>
 </head>
 <body>
-  <h2>简单聊天室</h2>
-  <div id="messages" style="border:1px solid #ccc; height:200px; overflow:auto;"></div>
-  <input id="msgInput" autocomplete="off"/><button id="sendBtn">发送</button>
+    <h1>聊天室</h1>
+    <ul id="messages"></ul>
+    <input id="myMessage" autocomplete="off" placeholder="输入消息并按回车发送..." /><button onclick="sendMessage()">发送</button>
+    <script>
+        var socket = io();
 
-  <script>
-    const socket = io();  // 建立 Socket.IO 连接
+        // 监听收到消息
+        socket.on('message', function(msg){
+            var item = document.createElement('li');
+            item.textContent = msg;
+            document.getElementById('messages').appendChild(item);
+            scrollToBottom();
+        });
 
-    socket.on('connect', () => {
-      console.log('已连接到服务器');
-    });
+        // 发送消息
+        function sendMessage() {
+            var input = document.getElementById('myMessage');
+            var msg = input.value.trim();
+            if(msg !== "") {
+                socket.send(msg);
+                input.value = '';
+            }
+        }
 
-    socket.on('message', data => {
-      const div = document.getElementById('messages');
-      div.innerHTML += `<p>${data}</p>`;
-      div.scrollTop = div.scrollHeight;
-    });
+        // 按回车键发送消息
+        document.getElementById('myMessage').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
 
-    const input = document.getElementById('msgInput');
-    const sendBtn = document.getElementById('sendBtn');
-
-    // 发送按钮点击事件
-    sendBtn.onclick = () => {
-      if (!input.value) return;
-      socket.send(input.value);
-      input.value = '';
-    };
-
-    // 新增：按下 Enter 键也发送
-    input.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter') {
-        // 阻止默认换行或提交行为
-        event.preventDefault();
-        sendBtn.click();
-      }
-    });
-  </script>
+        // 自动滚动到底部
+        function scrollToBottom() {
+            var messages = document.getElementById('messages');
+            messages.scrollTop = messages.scrollHeight;
+        }
+    </script>
 </body>
 </html>

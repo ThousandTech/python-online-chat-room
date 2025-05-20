@@ -11,8 +11,8 @@ from flask import Flask, render_template# 导入Flask类和render_template函数
 from flask_socketio import SocketIO, send# 导入SocketIO类(给Flask应用加上 WebSocket)和send函数(用于广播消息)
 
 app = Flask(__name__)# 创建应用实例'app'
-app.config['SECRET_KEY'] = 'chatroom-secret!'# 为了能在前端安全使用 socket.io，生成一个简单的密钥
-socketio = SocketIO(app, async_mode='eventlet')# 用socket包装应用实例'app'
+app.config['SECRET_KEY'] = 'secret!'# 为了能在前端安全使用 socket.io，生成一个简单的密钥
+socketio = SocketIO(app)# 用socket包装应用实例'app'
 
 @app.route('/')#路由装饰器,作用为浏览器试图访问根目录'/'时立刻调用下面的index()函数
 def index():
@@ -36,8 +36,8 @@ def handle_message(msg):
     返回:
         无返回值
     """
-    print('Received message:', msg)# 服务端日志输出
+    print('Received message: ' + msg)# 服务端日志输出
     send(msg, broadcast=True)# 向所有已连接的客户端广播'msg'
 
 if __name__ == '__main__':
-    socketio.run(app, debug=True)# 启动 SocketIO 的开发服务器以支持WebSocket，debug=True 会开启热重载和错误追踪
+    socketio.run(app, host='0.0.0.0', port=5000)# 启动 SocketIO 的开发服务器以支持WebSocket，debug=True 会开启热重载和错误追踪
