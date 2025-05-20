@@ -1,46 +1,172 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <title>聊天室</title>
-  <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+    <title>聊天室</title>
+    <meta charset="utf-8">
+    <script src="//cdn.bootcdn.net/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #181828;
+            color: #eee;
+        }
+        #messages {
+            border: 1px solid #444;
+            height: 350px;
+            width: 400px;
+            overflow-y: auto;
+            margin-bottom: 10px;
+            padding: 10px;
+            list-style: none;
+            background: #222233;
+        }
+        #myMessage {
+            width: 320px;
+            height: 30px;
+            font-size: 16px;
+            background: #292940;
+            color: #eee;
+            border: 1px solid #555;
+        }
+        button {
+            height: 34px;
+            font-size: 16px;
+            background: #292940;
+            color: #eee;
+            border: 1px solid #555;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #39395c;
+        }
+        #messages li {
+            color: #eee;
+            margin-bottom: 5px;
+        }
+    </style>
 </head>
+
 <body>
-  <h2>简单聊天室</h2>
-  <div id="messages" style="border:1px solid #ccc; height:200px; overflow:auto;"></div>
-  <input id="msgInput" autocomplete="off"/><button id="sendBtn">发送</button>
+    <h1>聊天室</h1>
 
-  <script>
-    const socket = io();  // 建立 Socket.IO 连接
+    <!-- 登录区 -->
+    <div id="loginArea">
+        <input id="login_user" placeholder="用户名">
+        <input id="login_pass" type="password" placeholder="密码">
+        <button onclick="login()">登录</button>
+        <button onclick="showRegister()">注册</button>
+        <div id="loginMsg"></div>
+    </div>
 
-    socket.on('connect', () => {
-      console.log('已连接到服务器');
-    });
+    <!-- 注册区（初始隐藏） -->
+    <div id="registerArea" style="display:none">
+        <input id="reg_user" placeholder="新用户名">
+        <input id="reg_pass" type="password" placeholder="新密码">
+        <button onclick="register()">提交注册</button>
+        <button onclick="showLogin()">返回登录</button>
+        <div id="registerMsg"></div>
+    </div>
 
-    socket.on('message', data => {
-      const div = document.getElementById('messages');
-      div.innerHTML += `<p>${data}</p>`;
-      div.scrollTop = div.scrollHeight;
-    });
+    <!-- 聊天区（初始隐藏） -->
+    <ul id="messages" style="display:none"></ul>
+    <input id="myMessage" autocomplete="off" placeholder="输入消息并按回车发送..." style="display:none" />
+    <button onclick="sendMessage()" style="display:none" id="sendBtn">发送</button>
 
-    const input = document.getElementById('msgInput');
-    const sendBtn = document.getElementById('sendBtn');
+    <script>
+        var socket = io();
+        var currentUser = null;
 
-    // 发送按钮点击事件
-    sendBtn.onclick = () => {
-      if (!input.value) return;
-      socket.send(input.value);
-      input.value = '';
-    };
+        // 监听收到消息
+        socket.on('message', function(data){
+            var item = document.createElement('li');
+            // 用户名 + 时间戳 + 消息
+            item.textContent = data.username + " [" + data.timestamp + "] " + data.msg;
+            document.getElementById('messages').appendChild(item);
+            scrollToBottom();
+        });
 
-    // 新增：按下 Enter 键也发送
-    input.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter') {
-        // 阻止默认换行或提交行为
-        event.preventDefault();
-        sendBtn.click();
-      }
-    });
-  </script>
+
+        // 发送消息
+        function sendMessage() {
+            var input = document.getElementById('myMessage');
+            var msg = input.value.trim();
+            if(msg !== "" && currentUser) {
+                socket.emit('message', {
+                    username: currentUser,
+                    msg: msg
+                });
+                input.value = '';
+            }
+        }
+
+        // 按回车键发送消息
+        document.getElementById('myMessage').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // 自动滚动到底部
+        function scrollToBottom() {
+            var messages = document.getElementById('messages');
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        // 登录流程
+        function login() {
+            fetch('/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    username: document.getElementById('login_user').value,
+                    password: document.getElementById('login_pass').value
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('loginMsg').textContent = data.msg;
+                if(data.success){
+                    // 显示聊天区，隐藏登录区
+                    currentUser = document.getElementById('login_user').value;
+                    document.getElementById('loginArea').style.display = 'none';
+                    document.getElementById('registerArea').style.display = 'none';
+                    document.getElementById('messages').style.display = '';
+                    document.getElementById('myMessage').style.display = '';
+                    document.getElementById('sendBtn').style.display = '';
+                }
+            });
+        }
+
+        // 注册流程
+        function register() {
+            fetch('/register', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    username: document.getElementById('reg_user').value,
+                    password: document.getElementById('reg_pass').value
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('registerMsg').textContent = data.msg;
+                if(data.success){
+                    // 注册成功直接跳到登录
+                    showLogin();
+                }
+            });
+        }
+
+        // 页面显示切换
+        function showRegister() {
+            document.getElementById('loginArea').style.display = 'none';
+            document.getElementById('registerArea').style.display = '';
+        }
+        function showLogin() {
+            document.getElementById('loginArea').style.display = '';
+            document.getElementById('registerArea').style.display = 'none';
+        }
+
+    </script>
 </body>
 </html>
