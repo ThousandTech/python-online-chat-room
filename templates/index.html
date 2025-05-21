@@ -191,14 +191,36 @@
             .then(data => {
                 document.getElementById('loginMsg').textContent = data.msg;
                 if(data.success){
-                    // 显示聊天区，隐藏登录区
+                    // ...显示区块
                     currentUser = document.getElementById('login_user').value;
                     document.getElementById('loginArea').style.display = 'none';
                     document.getElementById('registerArea').style.display = 'none';
                     document.getElementById('messages').style.display = '';
                     document.getElementById('myMessage').style.display = '';
                     document.getElementById('sendBtn').style.display = '';
+                    // 拉取历史消息
+                    fetch('messages')
+                        .then(res => res.json())
+                        .then(msgs => {
+                            var messages = document.getElementById('messages');
+                            messages.innerHTML = "";
+                            msgs.forEach(function(data){
+                                var item = document.createElement('li');
+                                item.className = data.username === currentUser ? 'me' : 'other';
+                                item.innerHTML = `
+                                <div class="user-info">
+                                    ${data.username === currentUser
+                                    ? `<span class="time">${data.timestamp}</span> <span class="username">${data.username}</span>`
+                                    : `<span class="username">${data.username}</span> <span class="time">${data.timestamp}</span>`}
+                                </div>
+                                <div class="message-content">${data.msg}</div>
+                                `;
+                                messages.appendChild(item);
+                            });
+                            scrollToBottom();
+                        });
                 }
+
             });
         }
 
