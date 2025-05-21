@@ -6,42 +6,98 @@
     <script src="//cdn.bootcdn.net/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            background: #181828;
-            color: #eee;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: #f5f7fa;
+            color: #2d3748;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 2rem;
+            line-height: 1.5;
         }
         #messages {
-            border: 1px solid #444;
-            height: 350px;
-            width: 400px;
+            width: min(90vw, 700px);
+            height: 70vh;
             overflow-y: auto;
-            margin-bottom: 10px;
-            padding: 10px;
+            margin: 2rem 0;
+            padding: 1.5rem;
             list-style: none;
-            background: #222233;
+            background: white;
+            border-radius: 1rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
         }
         #myMessage {
-            width: 320px;
-            height: 30px;
-            font-size: 16px;
-            background: #292940;
-            color: #eee;
-            border: 1px solid #555;
+            width: min(60vw, 500px);
+            height: 2.75rem;
+            font-size: 1rem;
+            background: white;
+            color: #2d3748;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            padding: 0 1rem;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        #myMessage:focus {
+            outline: none;
+            border-color: #4a4a6a;
         }
         button {
-            height: 34px;
-            font-size: 16px;
-            background: #292940;
-            color: #eee;
-            border: 1px solid #555;
+            height: 2.75rem;
+            font-size: 1rem;
+            background: #4299e1;
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
             cursor: pointer;
+            padding: 0 1.5rem;
+            margin-left: 0.75rem;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
         button:hover {
-            background: #39395c;
+            background: #3182ce;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+            transform: translateY(-1px);
         }
         #messages li {
-            color: #eee;
-            margin-bottom: 5px;
+            margin-bottom: 1rem;
+            padding: 0.75rem 1rem;
+            border-radius: 0.75rem;
+            max-width: 70%;
+            line-height: 1.4;
+        }
+        #messages li.me {
+            background: #edf2f7;
+            margin-left: auto;
+        }
+        #messages li.other {
+            background: #ebf8ff;
+            margin-right: auto;
+            color: #2b6cb0;
+        }
+        .user-info {
+            font-size: 0.9em;
+            margin-bottom: 0.3rem;
+        }
+        .user-info .username {
+            font-weight: 600;
+        }
+        .user-info .time {
+            color: #718096;
+            margin: 0 0.3rem;
+        }
+        #messages li.me .user-info {
+            text-align: right;
+        }
+        #messages li.other .user-info {
+            text-align: left;
+        }
+        .message-content {
+            word-wrap: break-word;
         }
     </style>
 </head>
@@ -69,8 +125,10 @@
 
     <!-- 聊天区（初始隐藏） -->
     <ul id="messages" style="display:none"></ul>
-    <input id="myMessage" autocomplete="off" placeholder="输入消息并按回车发送..." style="display:none" />
-    <button onclick="sendMessage()" style="display:none" id="sendBtn">发送</button>
+    <div id="inputGroup" style="display: flex; align-items: center; width: min(90vw, 700px); gap: 0.75rem;">
+        <input id="myMessage" autocomplete="off" placeholder="输入消息并按回车发送..." style="flex: 1; display: none" />
+        <button onclick="sendMessage()" style="display: none" id="sendBtn">发送</button>
+    </div>
 
     <script>
         var socket = io();
@@ -79,8 +137,15 @@
         // 监听收到消息
         socket.on('message', function(data){
             var item = document.createElement('li');
-            // 用户名 + 时间戳 + 消息
-            item.textContent = data.username + " [" + data.timestamp + "] " + data.msg;
+            // 根据发送者添加样式类
+            item.className = data.username === currentUser ? 'me' : 'other';
+            // 结构化消息内容：用户名+时间在上，消息内容在下
+            item.innerHTML = `\
+              <div class="user-info">\
+                ${data.username === currentUser ? `<span class="time">${data.timestamp}</span> <span class="username">${data.username}</span>` : `<span class="username">${data.username}</span> <span class="time">${data.timestamp}</span>`}\
+              </div>\
+              <div class="message-content">${data.msg}</div>\
+            `;
             document.getElementById('messages').appendChild(item);
             scrollToBottom();
         });
