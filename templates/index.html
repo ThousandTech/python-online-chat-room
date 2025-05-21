@@ -67,17 +67,18 @@
             margin-bottom: 1rem;
             padding: 0.75rem 1rem;
             border-radius: 0.75rem;
-            max-width: 70%;
+            max-width: min(70%, fit-content);
+            width: fit-content;
             line-height: 1.4;
         }
         #messages li.me {
-            background: #edf2f7;
+            background: #ebf8ff;
             margin-left: auto;
+            color: #2b6cb0;
         }
         #messages li.other {
-            background: #ebf8ff;
+            background: #edf2f7;
             margin-right: auto;
-            color: #2b6cb0;
         }
         .user-info {
             font-size: 0.9em;
@@ -97,7 +98,9 @@
             text-align: left;
         }
         .message-content {
+            max-width: 580px;
             word-wrap: break-word;
+            overflow-wrap: break-word;
         }
     </style>
 </head>
