@@ -17,71 +17,146 @@
             padding: 2rem;
             line-height: 1.5;
         }
-        #messages {
-            width: min(90vw, 700px);
-            height: 70vh;
-            overflow-y: auto;
-            margin: 2rem 0;
-            padding: 1.5rem;
-            list-style: none;
-            background: white;
-            border-radius: 1rem;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-            border: 1px solid #e2e8f0;
+
+        #pageTitle {
+            font-size: 2.1rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            color: #3182ce;
+            margin: 1.5rem 0 1.2rem 0;
+            text-align: center;
         }
-        #myMessage {
-            width: min(60vw, 500px);
-            height: 2.75rem;
-            font-size: 1rem;
+
+        #loginArea, #registerArea {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
             background: white;
+            border-radius: 1.5rem;
+            box-shadow: 0 8px 32px rgba(66, 153, 225, 0.07), 0 1.5px 5px #e2e8f0;
+            border: 1.5px solid #e2e8f0;
+            padding: 2.5rem 2.5rem 2rem 2.5rem;
+            margin-top: 3rem;
+            min-width: 340px;
+            max-width: 95vw;
+            width: 360px;
+        }
+
+        #loginArea input, #registerArea input {
+            width: 100%;
+            margin: 0.7rem 0;
+            height: 2.95rem;
+            font-size: 1.16rem;
+            background: #f8fafc;
             color: #2d3748;
-            border: 1px solid #e2e8f0;
-            border-radius: 0.5rem;
-            padding: 0 1rem;
-            transition: all 0.2s ease;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-        }
-        #myMessage:focus {
+            border: 1.5px solid #cbd5e0;
+            border-radius: 0.75rem;
+            padding: 0 1.25rem;
+            box-sizing: border-box;
+            transition: border 0.18s, box-shadow 0.18s;
             outline: none;
-            border-color: #4a4a6a;
         }
-        button {
+
+        #loginArea input:focus, #registerArea input:focus {
+            border-color: #4299e1;
+            box-shadow: 0 2px 8px rgba(66, 153, 225, 0.09);
+        }
+
+        .login-btn-group, .register-btn-group {
+            width: 100%;
+            display: flex;
+            flex-direction: row;
+            gap: 1.2rem;
+            justify-content: center;
+            margin-top: 1.5rem;
+        }
+
+        #loginArea button, #registerArea button {
+            flex: 1 1 0;
             height: 2.75rem;
-            font-size: 1rem;
-            background: #4299e1;
+            font-size: 1.08rem;
+            background: linear-gradient(90deg, #4299e1 60%, #90cdf4 100%);
             color: white;
             border: none;
-            border-radius: 0.5rem;
-            cursor: pointer;
-            padding: 0 1.5rem;
-            margin-left: 0.75rem;
-            transition: all 0.2s ease;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-        button:hover {
-            background: #3182ce;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-            transform: translateY(-1px);
-        }
-        #messages li {
-            margin-bottom: 1rem;
-            padding: 0.75rem 1rem;
             border-radius: 0.75rem;
-            max-width: min(70%, fit-content);
-            width: fit-content;
-            line-height: 1.4;
+            cursor: pointer;
+            margin: 0;
+            box-shadow: 0 1.5px 5px rgba(66,153,225,0.07);
+            transition: background 0.18s, box-shadow 0.18s, transform 0.12s;
         }
+
+        #loginArea button:hover, #registerArea button:hover {
+            background: linear-gradient(90deg, #3182ce 60%, #63b3ed 100%);
+            box-shadow: 0 3px 16px rgba(49, 130, 206, 0.11);
+            transform: translateY(-1.5px) scale(1.04);
+        }
+
+        #loginMsg, #registerMsg {
+            margin-top: 1.1rem;
+            min-height: 1.5rem;
+            color: #3182ce;
+            text-align: center;
+            font-size: 1rem;
+            letter-spacing: 0.05em;
+        }
+
+        /* 聊天卡片主面板 */
+        .chat-panel {
+            width: min(96vw, 720px);
+            height: 82vh;
+            min-height: 540px;
+            max-height: 94vh;
+            background: white;
+            border-radius: 1.2rem;
+            box-shadow: 0 6px 28px rgba(60,90,120,0.11);
+            border: 1.5px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 0;
+            margin: 2.2rem auto 0 auto;
+            overflow: hidden;
+        }
+
+        #messages {
+            flex: 1 1 auto;
+            width: 100%;
+            margin: 0;
+            padding: 1.3rem 1.2rem 0.8rem 1.2rem;
+            overflow-y: auto;
+            background: transparent;
+            border: none;
+            list-style: none;
+            box-sizing: border-box;
+        }
+
+        #messages li {
+            margin-bottom: 1.1rem;
+            padding: 0.85rem 1.15rem;
+            border-radius: 0.95rem;
+            max-width: 74%;
+            width: fit-content;
+            line-height: 1.52;
+            font-size: 1.13rem;
+            word-break: break-all;
+            background: #f1f5fa;
+            color: #222a38;
+            box-shadow: 0 2px 8px rgba(180,200,240,0.04);
+        }
+
         #messages li.me {
-            background: #ebf8ff;
+            background: #daf1ff;
             margin-left: auto;
-            color: #2b6cb0;
+            color: #297ab9;
         }
         #messages li.other {
-            background: #edf2f7;
+            background: #f4f7fa;
             margin-right: auto;
         }
+
         .user-info {
-            font-size: 0.9em;
+            font-size: 0.92em;
             margin-bottom: 0.3rem;
         }
         .user-info .username {
@@ -91,29 +166,92 @@
             color: #718096;
             margin: 0 0.3rem;
         }
-        #messages li.me .user-info {
-            text-align: right;
-        }
-        #messages li.other .user-info {
-            text-align: left;
-        }
+        #messages li.me .user-info { text-align: right; }
+        #messages li.other .user-info { text-align: left; }
+
         .message-content {
-            max-width: 580px;
+            max-width: 600px;
             word-wrap: break-word;
             overflow-wrap: break-word;
+        }
+
+        #inputGroup {
+            width: 100%;
+            display: flex;
+            align-items: flex-end;
+            gap: 1.15rem;
+            padding: 1.1rem 1.35rem 1.4rem 1.35rem;
+            background: #f9fbfd;
+            border-top: 1.5px solid #e2e8f0;
+            box-sizing: border-box;
+        }
+
+        #myMessage {
+            width: 100%;
+            min-height: 4.2rem;
+            height: 5.8rem;
+            max-height: 11rem;
+            font-size: 1.15rem;
+            background: #fff;
+            color: #2d3748;
+            border: 1.5px solid #d3e0ef;
+            border-radius: 0.8rem;
+            padding: 1.1rem 1.15rem;
+            margin-bottom: 0;
+            box-shadow: none;
+            resize: none;
+            overflow-y: auto;
+            overflow-x: hidden;
+            word-break: break-all;
+            transition: all 0.17s;
+            line-height: 1.55;
+            box-sizing: border-box;
+            display: block;
+        }
+
+        #myMessage:focus {
+            border-color: #4299e1;
+            box-shadow: 0 2px 8px rgba(66, 153, 225, 0.09);
+        }
+
+        #sendBtn {
+            height: 3.7rem;
+            min-width: 72px;
+            font-size: 1.17rem;
+            font-weight: 600;
+            background: linear-gradient(90deg, #4299e1 70%, #7cc4fa 100%);
+            color: #fff;
+            border: none;
+            border-radius: 0.82rem;
+            cursor: pointer;
+            padding: 0 2.15rem;
+            margin: 0;
+            box-shadow: 0 2px 8px rgba(66,153,225,0.10);
+            transition: background 0.14s, box-shadow 0.14s, transform 0.11s;
+            display: block;
+            align-self: flex-end;    /* 垂直底部对齐 */
+            letter-spacing: 0.13em;
+            white-space: nowrap;    /* 禁止文本换行 */
+            }
+        #sendBtn:hover {
+            background: linear-gradient(90deg, #3182ce 60%, #63b3ed 100%);
+            box-shadow: 0 3px 16px rgba(49, 130, 206, 0.13);
+            transform: translateY(-2px) scale(1.045);
         }
     </style>
 </head>
 
 <body>
-    <h1>聊天室</h1>
+    <h1 id="pageTitle">聊天室</h1>
 
     <!-- 登录区 -->
     <div id="loginArea">
         <input id="login_user" placeholder="用户名">
         <input id="login_pass" type="password" placeholder="密码">
-        <button onclick="login()">登录</button>
-        <button onclick="showRegister()">注册</button>
+        <div class="login-btn-group">
+            <button onclick="login()">登录</button>
+            <button onclick="showRegister()">注册</button>
+        </div>
         <div id="loginMsg"></div>
     </div>
 
@@ -121,16 +259,20 @@
     <div id="registerArea" style="display:none">
         <input id="reg_user" placeholder="新用户名">
         <input id="reg_pass" type="password" placeholder="新密码">
-        <button onclick="register()">提交注册</button>
-        <button onclick="showLogin()">返回登录</button>
+        <div class="register-btn-group">
+            <button onclick="register()">提交注册</button>
+            <button onclick="showLogin()">返回登录</button>
+        </div>
         <div id="registerMsg"></div>
     </div>
 
-    <!-- 聊天区（初始隐藏） -->
-    <ul id="messages" style="display:none"></ul>
-    <div id="inputGroup" style="display: flex; align-items: center; width: min(90vw, 700px); gap: 0.75rem;">
-        <input id="myMessage" autocomplete="off" placeholder="输入消息并按回车发送..." style="flex: 1; display: none" />
-        <button onclick="sendMessage()" style="display: none" id="sendBtn">发送</button>
+    <!-- 聊天主面板（合并消息和输入，初始隐藏） -->
+    <div id="chatPanel" class="chat-panel" style="display:none">
+        <ul id="messages"></ul>
+        <div id="inputGroup">
+            <textarea id="myMessage" autocomplete="off" placeholder="输入消息，Enter发送，Shift+Enter换行..." rows="4"></textarea>
+            <button onclick="sendMessage()" id="sendBtn">发送</button>
+        </div>
     </div>
 
     <script>
@@ -140,19 +282,18 @@
         // 监听收到消息
         socket.on('message', function(data){
             var item = document.createElement('li');
-            // 根据发送者添加样式类
             item.className = data.username === currentUser ? 'me' : 'other';
-            // 结构化消息内容：用户名+时间在上，消息内容在下
-            item.innerHTML = `\
-              <div class="user-info">\
-                ${data.username === currentUser ? `<span class="time">${data.timestamp}</span> <span class="username">${data.username}</span>` : `<span class="username">${data.username}</span> <span class="time">${data.timestamp}</span>`}\
-              </div>\
-              <div class="message-content">${data.msg}</div>\
+            item.innerHTML = `
+                <div class="user-info">
+                    ${data.username === currentUser
+                    ? `<span class="time">${data.timestamp}</span> <span class="username">${data.username}</span>`
+                    : `<span class="username">${data.username}</span> <span class="time">${data.timestamp}</span>`}
+                </div>
+                <div class="message-content">${data.msg}</div>
             `;
             document.getElementById('messages').appendChild(item);
             scrollToBottom();
         });
-
 
         // 发送消息
         function sendMessage() {
@@ -167,11 +308,13 @@
             }
         }
 
-        // 按回车键发送消息
+        // 按回车键发送消息（Enter 发送，Shift+Enter 换行）
         document.getElementById('myMessage').addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
                 sendMessage();
             }
+            // Shift+Enter 允许换行
         });
 
         // 自动滚动到底部
@@ -194,13 +337,11 @@
             .then(data => {
                 document.getElementById('loginMsg').textContent = data.msg;
                 if(data.success){
-                    // ...显示区块
                     currentUser = document.getElementById('login_user').value;
+                    document.getElementById('pageTitle').style.display = 'none';
                     document.getElementById('loginArea').style.display = 'none';
                     document.getElementById('registerArea').style.display = 'none';
-                    document.getElementById('messages').style.display = '';
-                    document.getElementById('myMessage').style.display = '';
-                    document.getElementById('sendBtn').style.display = '';
+                    document.getElementById('chatPanel').style.display = '';
                     // 拉取历史消息
                     fetch('messages')
                         .then(res => res.json())
@@ -223,7 +364,6 @@
                             scrollToBottom();
                         });
                 }
-
             });
         }
 
@@ -241,7 +381,6 @@
             .then(data => {
                 document.getElementById('registerMsg').textContent = data.msg;
                 if(data.success){
-                    // 注册成功直接跳到登录
                     showLogin();
                 }
             });
@@ -251,10 +390,12 @@
         function showRegister() {
             document.getElementById('loginArea').style.display = 'none';
             document.getElementById('registerArea').style.display = '';
+            document.getElementById('pageTitle').style.display = '';
         }
         function showLogin() {
             document.getElementById('loginArea').style.display = '';
             document.getElementById('registerArea').style.display = 'none';
+            document.getElementById('pageTitle').style.display = '';
         }
 
     </script>
