@@ -1,7 +1,7 @@
 import json# 导入json模块解析和保存json
 import os# 导入os模块进行文件操作
 
-USERS_FILE = 'users.json'# 用户数据文件路径
+USERS_FILE = 'data/users.json'# 用户数据文件路径
 # json存储格式示例
 # {
 #     "alice": "password123",
