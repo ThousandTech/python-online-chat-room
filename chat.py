@@ -1,9 +1,10 @@
 from flask import Flask, request, jsonify, render_template
 # 导入Flask类，request变量(获取前端数据)，jsonify函数(给前端返回json)，ender_template函数(返回html)
 from flask_socketio import SocketIO, send# 导入SocketIO类(给Flask应用加上 WebSocket)和send函数(用于广播消息)
-from datetime import datetime, timedelta, timezone  # 导入datetime用于获取和格式化当前时间，timedelta用于时间差计算，timezone用于设置时区（如北京时间UTC+8）
+
 import auth# 导入自定义auth模块用于登陆与注册功能
 import messages# 导入自定义messages模块用于消息存储功能
+import timeutils# 导入自定义timeutils模块用于时间处理功能
 
 app = Flask(__name__)# 创建应用实例'app'
 app.config['SECRET_KEY'] = 'secret!'# 为了能在前端安全使用 socket.io，生成一个简单的密钥
@@ -58,20 +59,6 @@ def get_messages():
     """
     return jsonify(messages.load_messages())# 调用messages.py中的load_messages()函数，返回所有历史消息列表
 
-def get_iso_timestamp():
-    """返回当前时间的 ISO 8601 格式字符串（UTC时间，带Z后缀）"""
-    return datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
-# 这个函数返回当前时间的 ISO 8601 格式字符串（UTC时间，带Z后缀），用于给消息添加时间戳
-#返回 ISO 8601 标准格式，便于前端解析和国际化，ISO 格式更易于前端处理和转换为本地时间
-# 这个函数可以在需要时调用，给消息添加时间戳
-# 例如：message['timestamp'] = get_iso_timestamp()
-
-def get_beijing_timestamp():
-    """返回当前中国北京时间，格式如 2025-05-22 18:52:37"""
-    now = datetime.now(timezone(timedelta(hours=8)))
-    return now.strftime("%Y-%m-%d %H:%M:%S")
-
-
 @socketio.on('message')# 注册一个事件处理器，监听所有客户端通过默认事件"message"发送的数据
 def handle_message(data):
     """
@@ -82,11 +69,16 @@ def handle_message(data):
     """
     username = data.get('username')
     msg = data.get('msg')
+
+    timestamp_data = timeutils.get_message_timestamp()
+
     message = {
         'username': username,
         'msg': msg,
-        'timestamp': get_beijing_timestamp()  # 使用封装的ISO 8601时间戳函数，使用北京时间格式
+        'timestamp': timestamp_data['full'],  # 完整时间戳
+        'timestamp_data': timestamp_data  # 包含所有时间信息的字典
     }
+    
     print(f'{username}:{msg}')# 服务端日志输出
     messages.save_message(message)# 调用messages.py中的save_message()函数，将消息保存到messages.json文件中
     send(message, broadcast=True)# 向所有已连接的客户端广播'message'

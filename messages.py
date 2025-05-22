@@ -20,6 +20,8 @@ def save_message(message):
     Args:
         message (dict): 单条消息，包含username, msg, timestamp等
     """
+    os.makedirs(os.path.dirname(MESSAGES_FILE), exist_ok=True)# 确保目录存在
+    
     msgs = load_messages()# 先加载历史消息到内存
     msgs.append(message)# 追加消息
     with open(MESSAGES_FILE, 'w', encoding='utf-8') as f:

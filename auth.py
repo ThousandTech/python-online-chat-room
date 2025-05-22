@@ -1,13 +1,8 @@
 import json# 导入json模块解析和保存json
 import os# 导入os模块进行文件操作
+from werkzeug.security import generate_password_hash, check_password_hash# 导入werkzeug.security模块进行密码加密和校验
 
 USERS_FILE = 'data/users.json'# 用户数据文件路径
-# json存储格式示例
-# {
-#     "alice": "password123",
-#     "bob": "abc123"
-# }
-
 
 def load_users():
     """
@@ -29,7 +24,7 @@ def save_users(users):
         users (dict): 用户名-密码字典
     """
     with open(USERS_FILE, 'w') as f:# 写入打开users.json，不存在则自动新建
-        json.dump(users, f)# 调用json.dump()方法将users.json写入user字典中的所有用户账号和密码
+        json.dump(users, f, ensure_ascii=False, indent=4)# 调用json.dump()方法将users.json写入user字典中的所有用户账号和密码
 
 def register_user(username, password):
     """
@@ -46,7 +41,12 @@ def register_user(username, password):
     users = load_users()#  加载已存储用户
     if username in users:# 用户查重
         return False, "用户名已存在"
-    users[username] = password# users字典新建用户
+    hashed = generate_password_hash(password)# 密码哈希加密
+    users[username] = generate_password_hash(
+        password,
+        method="scrypt:32768:8:1",
+        salt_length=16
+    )# 将用户名和密码哈希存入users字典
     save_users(users)# 将users字典写入users.json
     return True, "注册成功"
 
@@ -61,7 +61,8 @@ def login_user(username, password):
         tuple: (bool, str)，bool表示登录是否成功，str为提示信息
     """
     users = load_users()
-    if users.get(username) == password:# 密码校验
+    stored_hash = users.get(username)# 获取存储的密码哈希
+    if stored_hash and check_password_hash(stored_hash, password):# 如果取到哈希值且校验通过，则登录成功
         return True, "登录成功"
     else:
         return False, "用户名或密码错误"
