@@ -120,13 +120,20 @@ socket.on('message', function(data){
 function sendMessage() {
     var input = document.getElementById('myMessage');
     var raw = input.value;                // 不要直接 trim，先保留原始内容
-    // 用 raw.trim() 仅做“是否全空白”的检测
+    // 用 raw.trim() 仅做"是否全空白"的检测
    if (raw.trim() !== "" && currentUser) {
         socket.emit('message', {
             username: currentUser,
             msg: raw                // 发送原始内容，保留换行和空格
         });
         input.value = '';
+        
+        // 如果表情选择器打开，则关闭它
+        if (emojiPickerVisible) {
+            emojiPickerVisible = false;
+            document.getElementById('emojiPicker').style.display = 'none';
+            document.removeEventListener('click', closeEmojiPickerOnClickOutside);
+        }
     } else {
         if (raw.trim() === "") {
             alert('不能发送空白消息');
@@ -362,4 +369,25 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         // Shift+Enter 允许换行
     });
+});
+
+// 检测是否有聊天面板显示并添加相应类名
+document.addEventListener('DOMContentLoaded', function() {
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.target.id === 'chatPanel' && 
+                mutation.attributeName === 'style') {
+                if (document.getElementById('chatPanel').style.display !== 'none') {
+                    document.body.classList.add('chat-active');
+                } else {
+                    document.body.classList.remove('chat-active');
+                }
+            }
+        });
+    });
+    
+    const chatPanel = document.getElementById('chatPanel');
+    if (chatPanel) {
+        observer.observe(chatPanel, {attributes: true});
+    }
 });

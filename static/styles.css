@@ -5,10 +5,13 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    min-height: 100vh;
+    justify-content: center; /* 添加垂直居中 */
+    height: 100vh;
     margin: 0;
-    padding: 2rem;
+    padding: 0;
     line-height: 1.5;
+    overflow: hidden;
+    box-sizing: border-box;
 }
 
 #pageTitle {
@@ -16,8 +19,11 @@ body {
     font-weight: 700;
     letter-spacing: 0.04em;
     color: #3182ce;
-    margin: 1.5rem 0 1.2rem 0;
+    margin: 0 0 1rem 0; /* 调整页面标题边距 */
     text-align: center;
+    position: absolute; /* 将标题绝对定位 */
+    top: 1rem; /* 固定在顶部 */
+    width: 100%;
 }
 
 #loginArea, #registerArea {
@@ -30,7 +36,6 @@ body {
     box-shadow: 0 8px 32px rgba(66, 153, 225, 0.07), 0 1.5px 5px #e2e8f0;
     border: 1.5px solid #e2e8f0;
     padding: 2.5rem 2.5rem 2rem 2.5rem;
-    margin-top: 3rem;
     min-width: 340px;
     max-width: 95vw;
     width: 360px;
@@ -97,9 +102,7 @@ body {
 /* 聊天卡片主面板 */
 .chat-panel {
     width: min(96vw, 720px);
-    height: 82vh;
-    min-height: 540px;
-    max-height: 94vh;
+    height: min(82vh, 700px); /* 限制最大高度 */
     background: white;
     border-radius: 1.2rem;
     box-shadow: 0 6px 28px rgba(60,90,120,0.11);
@@ -108,12 +111,13 @@ body {
     flex-direction: column;
     justify-content: space-between;
     padding: 0;
-    margin: 2.2rem auto 0 auto;
+    margin: 0 auto;
     overflow: hidden;
+    position: relative; /* 添加相对定位 */
 }
 
 #messages {
-    flex: 1 1 auto;
+    flex: 1 1 auto; /* 允许消息区域伸缩 */
     width: 100%;
     margin: 0;
     padding: 1.3rem 1.2rem 0.8rem 1.2rem;
@@ -122,6 +126,8 @@ body {
     border: none;
     list-style: none;
     box-sizing: border-box;
+    -webkit-overflow-scrolling: touch;
+    min-height: 100px; /* 设置最小高度，确保在极端情况下仍有显示空间 */
 }
 
 /* 消息项容器 */
@@ -208,24 +214,25 @@ body {
     width: 100%;
     display: flex;
     flex-direction: column;
-    padding: 1.1rem 1.35rem 1.4rem 1.35rem;
+    padding: 0.8rem 1.35rem 1rem 1.35rem;
     background: #f9fbfd;
     border-top: 1.5px solid #e2e8f0;
     box-sizing: border-box;
     position: relative;
+    flex-shrink: 0; /* 防止输入框区域被压缩 */
 }
 
 #myMessage {
     width: 100%;
-    min-height: 4.2rem;
-    height: 5.8rem;
-    max-height: 11rem;
+    min-height: 3.6rem;
+    height: 4.8rem;
+    max-height: 8rem;
     font-size: 1.15rem;
     background: #fff;
     color: #2d3748;
     border: 1.5px solid #d3e0ef;
     border-radius: 0.8rem;
-    padding: 1.1rem 1.15rem;
+    padding: 1rem 1.15rem;
     margin-bottom: 0.8rem;
     box-shadow: none;
     resize: none;
@@ -289,7 +296,7 @@ body {
     transition: background 0.14s, box-shadow 0.14s, transform 0.11s;
     display: block;
     letter-spacing: 0.13em;
-    white-space: nowrap;    /* 禁止文本换行 */
+    white-space: nowrap;
     flex: 1;
 }
 
@@ -336,4 +343,75 @@ emoji-picker {
     #sendBtn {
         padding: 0 1.5rem;
     }
+}
+
+/* 针对非常小屏幕的响应式调整 */
+@media (max-height: 600px) {
+    .chat-panel {
+        height: min(92vh, 600px); /* 增加面板在小屏幕上的占比 */
+    }
+    
+    #messages {
+        min-height: 80px; /* 减少消息区域的最小高度 */
+    }
+    
+    #myMessage {
+        min-height: 3rem;
+        height: 3.6rem;
+    }
+    
+    #inputGroup {
+        padding: 0.6rem 1.2rem 0.8rem 1.2rem;
+    }
+    
+    #emojiBtn, #sendBtn {
+        height: 2.8rem;
+    }
+}
+
+/* 针对极小屏幕的调整 */
+@media (max-height: 480px) {
+    #pageTitle {
+        font-size: 1.6rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .chat-panel {
+        height: min(94vh, 480px);
+    }
+    
+    #messages {
+        min-height: 60px;
+        padding: 0.8rem 1rem 0.5rem 1rem;
+    }
+    
+    #myMessage {
+        min-height: 2.5rem;
+        height: 3rem;
+        padding: 0.6rem 1rem;
+        margin-bottom: 0.6rem;
+    }
+    
+    #inputGroup {
+        padding: 0.5rem 1rem 0.7rem 1rem;
+    }
+    
+    #emojiBtn, #sendBtn {
+        height: 2.5rem;
+    }
+    
+    .message-bubble {
+        padding: 0.7rem 1rem;
+        font-size: 1rem;
+    }
+    
+    .username-label {
+        font-size: 0.8rem;
+        margin-bottom: 0.3rem;
+    }
+}
+
+/* 当登录和聊天面板显示时的页面标题调整 */
+body.chat-active #pageTitle {
+    display: none;
 }
