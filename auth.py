@@ -41,7 +41,6 @@ def register_user(username, password):
     users = load_users()#  加载已存储用户
     if username in users:# 用户查重
         return False, "用户名已存在"
-    hashed = generate_password_hash(password)# 密码哈希加密
     users[username] = generate_password_hash(
         password,
         method="scrypt:32768:8:1",
