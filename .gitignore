@@ -7,7 +7,7 @@ dist/
 build/
 
 #data
-data/
+data/*.json
 
 # venv
 venv/
