@@ -115,11 +115,12 @@ socket.on('message', function(data){
  */
 function sendMessage() {
     var input = document.getElementById('myMessage');
-    var msg = input.value.trim();
-    if(msg !== "" && currentUser) {
+    var raw = input.value;                // 不要直接 trim，先保留原始内容
+    // 用 raw.trim() 仅做“是否全空白”的检测
+   if (raw.trim() !== "" && currentUser) {
         socket.emit('message', {
             username: currentUser,
-            msg: msg
+            msg: raw                // 发送原始内容，保留换行和空格
         });
         input.value = '';
     }
@@ -214,7 +215,7 @@ function processHistoricalMessages(messages) {
         // 添加消息气泡
         const messageBubble = document.createElement('div');
         messageBubble.className = 'message-bubble';
-        messageBubble.innerHTML = data.msg;
+        messageBubble.textContent = data.msg;  // 改用 textContent 保留原始换行并防 XSS
         messageItem.appendChild(messageBubble);
         
         // 将消息项添加到消息列表

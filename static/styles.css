@@ -161,6 +161,7 @@ body {
     line-height: 1.52;
     font-size: 1.13rem;
     word-break: break-all;
+    white-space: pre-wrap;
     background: #f1f5fa;
     color: #222a38;
     box-shadow: 0 2px 8px rgba(180,200,240,0.04);
