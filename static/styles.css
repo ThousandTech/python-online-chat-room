@@ -166,6 +166,13 @@ body {
     color: #222a38;
     box-shadow: 0 2px 8px rgba(180,200,240,0.04);
     border: 1.5px solid #b3d8fd;
+
+    /* 链接样式 */
+    & a {
+        color: #3182ce;
+        text-decoration: none;
+        cursor: pointer;
+    }
 }
 
 .message-item.me .message-bubble {

@@ -98,7 +98,11 @@ socket.on('message', function(data){
     // 添加消息气泡
     const messageBubble = document.createElement('div');
     messageBubble.className = 'message-bubble';
-    messageBubble.innerHTML = data.msg;
+    // 将消息中的URL转换为可点击链接
+    const replaceUrlsWithLinks = (text) => {
+        return text.replace(/(https?:\/\/[\w-]+(\.[\w-]+)+([\w.,@?^=%&:\/~+#-]*[\w@?^=%&\/~+#-])?)/g, '<a href="$1" target="_blank">$1</a>');
+    };
+    messageBubble.innerHTML = replaceUrlsWithLinks(data.msg);
     messageItem.appendChild(messageBubble);
     
     // 将消息项添加到消息列表
@@ -123,6 +127,10 @@ function sendMessage() {
             msg: raw                // 发送原始内容，保留换行和空格
         });
         input.value = '';
+    } else {
+        if (raw.trim() === "") {
+            alert('不能发送空白消息');
+        }
     }
 }
 
@@ -215,7 +223,11 @@ function processHistoricalMessages(messages) {
         // 添加消息气泡
         const messageBubble = document.createElement('div');
         messageBubble.className = 'message-bubble';
-        messageBubble.textContent = data.msg;  // 改用 textContent 保留原始换行并防 XSS
+        // 将消息中的URL转换为可点击链接
+        const replaceUrlsWithLinks = (text) => {
+            return text.replace(/(https?:\/\/[\w-]+(\.[\w-]+)+([\w.,@?^=%&:\/~+#-]*[\w@?^=%&\/~+#-])?)/g, '<a href="$1" target="_blank">$1</a>');
+        };
+        messageBubble.innerHTML = replaceUrlsWithLinks(data.msg);  // 使用innerHTML显示链接，同时保留原始换行
         messageItem.appendChild(messageBubble);
         
         // 将消息项添加到消息列表
