@@ -10,7 +10,7 @@
 </head>
 
 <body>
-    <h1 id="pageTitle">聊天室</h1>
+    <h1 id="pageTitle">Thousand的聊天室</h1>
 
     <!-- 登录区 -->
     <div id="loginArea">
@@ -34,17 +34,81 @@
         <div id="registerMsg"></div>
     </div>
 
-    <!-- 聊天主面板（合并消息和输入，初始隐藏） -->
+    <!-- 聊天主面板（初始隐藏） -->
     <div id="chatPanel" class="chat-panel" style="display:none">
-        <div id="messages"></div>
-        <div id="inputGroup">
-            <textarea id="myMessage" autocomplete="off" placeholder="输入消息，Enter发送，Shift+Enter换行..." rows="4"></textarea>
-            <div class="input-buttons">
-                <button id="emojiBtn" onclick="toggleEmojiPicker()">😊</button>
-                <button onclick="sendMessage()" id="sendBtn">发送</button>
+        <!-- 顶部栏 -->
+        <div class="chat-header">
+            <div class="room-info">
+                <h3 id="currentRoomName">大厅</h3>
+                <span id="currentRoomUsers">在线: 0人</span>
             </div>
-            <!-- 使用emoji-picker-element库 -->
-            <emoji-picker id="emojiPicker"></emoji-picker>
+            <div class="header-actions">
+                <button id="roomListBtn" onclick="toggleRoomList()">房间列表</button>
+                <button id="logoutBtn" onclick="logout()">退出</button>
+            </div>
+        </div>
+
+        <!-- 主要内容区域 -->
+        <div class="chat-main">
+            <!-- 房间列表侧边栏 -->
+            <div id="roomSidebar" class="room-sidebar">
+                <div class="sidebar-header">
+                    <h4>聊天室列表</h4>
+                    <button class="close-sidebar" onclick="toggleRoomList()">×</button>
+                </div>
+                <div id="roomsList" class="rooms-list">
+                    <!-- 房间列表将动态加载 -->
+                </div>
+                <div class="sidebar-footer">
+                    <button onclick="showCreateRoomDialog()" class="create-room-btn">+ 创建新房间</button>
+                </div>
+            </div>
+
+            <!-- 聊天内容区域 -->
+            <div class="chat-content">
+                <!-- 消息区域 -->
+                <div id="messages" class="messages-container"></div>
+                
+                <!-- 输入区域 -->
+                <div id="inputGroup" class="input-group">
+                    <textarea id="myMessage" autocomplete="off" placeholder="输入消息，Enter发送，Shift+Enter换行..." rows="4"></textarea>
+                    <div class="input-buttons">
+                        <button id="emojiBtn" onclick="toggleEmojiPicker()">😊</button>
+                        <button onclick="sendMessage()" id="sendBtn">发送</button>
+                    </div>
+                    <!-- 表情选择器 -->
+                    <emoji-picker id="emojiPicker"></emoji-picker>
+                </div>
+            </div>
+
+            <!-- 在线用户列表侧边栏 -->
+            <div id="usersSidebar" class="users-sidebar">
+                <div class="sidebar-header">
+                    <h4>在线用户</h4>
+                </div>
+                <div id="onlineUsersList" class="users-list">
+                    <!-- 在线用户列表将动态加载 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 创建房间对话框（初始隐藏） -->
+    <div id="createRoomDialog" class="modal-overlay" style="display:none">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>创建新聊天室</h3>
+                <button class="close-modal" onclick="hideCreateRoomDialog()">×</button>
+            </div>
+            <div class="modal-body">
+                <input id="newRoomId" placeholder="房间ID（英文字母数字，如: tech）" maxlength="20">
+                <input id="newRoomName" placeholder="房间名称（如: 技术讨论）" maxlength="50">
+                <div id="createRoomMsg" class="modal-msg"></div>
+            </div>
+            <div class="modal-footer">
+                <button onclick="createRoom()" class="confirm-btn">创建</button>
+                <button onclick="hideCreateRoomDialog()" class="cancel-btn">取消</button>
+            </div>
         </div>
     </div>
 

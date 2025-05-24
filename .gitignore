@@ -8,7 +8,8 @@ build/
 
 #data
 !data/
-data/*.json
+data/users/*.json
+data/rooms/*.json
 
 # venv
 venv/

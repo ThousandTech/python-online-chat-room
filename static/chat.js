@@ -1,7 +1,11 @@
 var socket = io();
 var currentUser = null;
-var lastTimestamp = null; // 存储上一条消息的时间戳
+var currentRoomId = 'general';
+var lastTimestamp = null;
 var emojiPickerVisible = false;
+var rooms = [];
+var activeUsers = [];
+var isConnected = false;
 
 /**
  * 此函数格式化时间戳为易读格式。
@@ -71,84 +75,6 @@ function isSameMinute(timestamp1, timestamp2) {
     return Math.floor(time1 / 60) === Math.floor(time2 / 60);
 }
 
-// 监听收到消息
-socket.on('message', function(data){
-    // 检查是否需要显示时间戳标记
-    const showTimestamp = !lastTimestamp || !isSameMinute(data, lastTimestamp);
-    
-    // 如果需要显示时间戳，先添加一个时间戳分隔符
-    if (showTimestamp) {
-        const formattedTime = formatTimestamp(data);
-        const timestampDiv = document.createElement('div');
-        timestampDiv.className = 'timestamp-divider';
-        timestampDiv.innerHTML = `<span>${formattedTime}</span>`;
-        document.getElementById('messages').appendChild(timestampDiv);
-    }
-    
-    // 创建消息项容器
-    const messageItem = document.createElement('div');
-    messageItem.className = `message-item ${data.username === currentUser ? 'me' : 'other'}`;
-    
-    // 添加用户名标签
-    const usernameLabel = document.createElement('div');
-    usernameLabel.className = 'username-label';
-    usernameLabel.textContent = data.username;
-    messageItem.appendChild(usernameLabel);
-    
-    // 添加消息气泡
-    const messageBubble = document.createElement('div');
-    messageBubble.className = 'message-bubble';
-    // 将消息中的URL转换为可点击链接
-    const replaceUrlsWithLinks = (text) => {
-        return text.replace(/(https?:\/\/[\w-]+(\.[\w-]+)+([\w.,@?^=%&:\/~+#-]*[\w@?^=%&\/~+#-])?)/g, '<a href="$1" target="_blank">$1</a>');
-    };
-    messageBubble.innerHTML = replaceUrlsWithLinks(data.msg);
-    messageItem.appendChild(messageBubble);
-    
-    // 将消息项添加到消息列表
-    document.getElementById('messages').appendChild(messageItem);
-    
-    // 更新上一条消息的时间戳
-    lastTimestamp = data;
-    
-    scrollToBottom();
-});
-
-/**
- * 此函数发送消息到服务器。
- */
-function sendMessage() {
-    var input = document.getElementById('myMessage');
-    var raw = input.value;                // 不要直接 trim，先保留原始内容
-    // 用 raw.trim() 仅做"是否全空白"的检测
-   if (raw.trim() !== "" && currentUser) {
-        socket.emit('message', {
-            username: currentUser,
-            msg: raw                // 发送原始内容，保留换行和空格
-        });
-        input.value = '';
-        
-        // 如果表情选择器打开，则关闭它
-        if (emojiPickerVisible) {
-            emojiPickerVisible = false;
-            document.getElementById('emojiPicker').style.display = 'none';
-            document.removeEventListener('click', closeEmojiPickerOnClickOutside);
-        }
-    } else {
-        if (raw.trim() === "") {
-            alert('不能发送空白消息');
-        }
-    }
-}
-
-/**
- * 此函数自动滚动消息区域到底部。
- */
-function scrollToBottom() {
-    var messages = document.getElementById('messages');
-    messages.scrollTop = messages.scrollHeight;
-}
-
 /**
  * 此函数格式化历史消息时间戳，处理新旧两种格式。
  * @param {Object} data - 消息数据
@@ -196,11 +122,412 @@ function formatHistoricalTimestamp(data) {
 }
 
 /**
+ * 用户登录成功后的处理
+ */
+function onLoginSuccess(username) {
+    currentUser = username;
+    
+    // 更新UI
+    document.getElementById('pageTitle').style.display = 'none';
+    document.getElementById('loginArea').style.display = 'none';
+    document.getElementById('registerArea').style.display = 'none';
+    document.getElementById('chatPanel').style.display = '';
+    
+    // 等待连接建立后自动加入默认房间
+    if (socket.connected) {
+        autoJoinDefaultRoom();
+    } else {
+        // 如果尚未连接，等待连接事件
+        socket.once('connect', () => {
+            autoJoinDefaultRoom();
+        });
+    }
+}
+
+/**
+ * 自动加入默认房间
+ */
+function autoJoinDefaultRoom() {
+    // 通知服务器用户已登录，自动加入默认房间
+    socket.emit('user_login', {
+        username: currentUser
+    });
+    
+    // 加载聊天室列表
+    loadRooms();
+}
+
+/**
+ * 加载聊天室列表
+ */
+function loadRooms() {
+    fetch('/rooms')
+        .then(res => res.json())
+        .then(roomsData => {
+            rooms = roomsData;
+            updateRoomsList();
+        })
+        .catch(err => console.error('加载聊天室列表失败:', err));
+}
+
+/**
+ * 更新聊天室列表显示
+ */
+function updateRoomsList() {
+    const roomsList = document.getElementById('roomsList');
+    if (!roomsList) return;
+    
+    roomsList.innerHTML = '';
+    
+    rooms.forEach(room => {
+        const roomItem = document.createElement('div');
+        roomItem.className = `room-item ${room.room_id === currentRoomId ? 'active' : ''}`;
+        roomItem.onclick = () => joinRoom(room.room_id);
+        
+        roomItem.innerHTML = `
+            <div class="room-item-info">
+                <h5>${room.room_name}</h5>
+                <span>在线: ${room.user_count}人</span>
+            </div>
+        `;
+        
+        roomsList.appendChild(roomItem);
+    });
+}
+
+/**
+ * 加入聊天室
+ */
+function joinRoom(roomId) {
+    if (!currentUser) {
+        alert('请先登录');
+        return;
+    }
+    
+    if (roomId === currentRoomId) {
+        toggleRoomList(); // 如果是当前房间，则关闭侧边栏
+        return;
+    }
+    
+    currentRoomId = roomId;
+    socket.emit('join_room', {
+        username: currentUser,
+        room_id: roomId
+    });
+    
+    // 清空消息区域
+    document.getElementById('messages').innerHTML = '';
+    lastTimestamp = null;
+    
+    // 加载该聊天室的历史消息
+    fetch(`/rooms/${roomId}/messages`)
+        .then(res => res.json())
+        .then(msgs => {
+            processHistoricalMessages(msgs);
+        })
+        .catch(err => console.error('加载聊天室消息失败:', err));
+    
+    // 更新UI
+    updateRoomsList();
+    
+    // 关闭侧边栏
+    const sidebar = document.getElementById('roomSidebar');
+    const chatContent = document.getElementById('chatContent') || document.querySelector('.chat-content');
+    if (sidebar) {
+        sidebar.classList.remove('show');
+    }
+    if (chatContent) {
+        chatContent.classList.remove('sidebar-open');
+    }
+}
+
+/**
+ * 切换房间列表侧边栏
+ */
+function toggleRoomList() {
+    const sidebar = document.getElementById('roomSidebar');
+    const chatContent = document.querySelector('.chat-content');
+    if (!sidebar || !chatContent) return;
+    
+    if (sidebar.classList.contains('show')) {
+        sidebar.classList.remove('show');
+        chatContent.classList.remove('sidebar-open');
+    } else {
+        sidebar.classList.add('show');
+        chatContent.classList.add('sidebar-open');
+        loadRooms(); // 重新加载房间列表
+    }
+}
+
+/**
+ * 显示创建房间对话框
+ */
+function showCreateRoomDialog() {
+    document.getElementById('createRoomDialog').style.display = 'flex';
+    document.getElementById('newRoomId').value = '';
+    document.getElementById('newRoomName').value = '';
+    document.getElementById('createRoomMsg').textContent = '';
+}
+
+/**
+ * 隐藏创建房间对话框
+ */
+function hideCreateRoomDialog() {
+    document.getElementById('createRoomDialog').style.display = 'none';
+}
+
+/**
+ * 创建新聊天室
+ */
+function createRoom() {
+    const roomId = document.getElementById('newRoomId').value.trim();
+    const roomName = document.getElementById('newRoomName').value.trim();
+    const msgEl = document.getElementById('createRoomMsg');
+    
+    if (!roomId || !roomName) {
+        msgEl.textContent = '请填写房间ID和名称';
+        msgEl.style.color = '#e53e3e';
+        return;
+    }
+    
+    // 验证房间ID格式
+    if (!/^[a-zA-Z0-9_-]+$/.test(roomId)) {
+        msgEl.textContent = '房间ID只能包含英文字母、数字、下划线和横线';
+        msgEl.style.color = '#e53e3e';
+        return;
+    }
+    
+    fetch('/rooms', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            room_id: roomId,
+            room_name: roomName
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            msgEl.textContent = '聊天室创建成功！';
+            msgEl.style.color = '#38a169';
+            setTimeout(() => {
+                hideCreateRoomDialog();
+                loadRooms(); // 重新加载房间列表
+                joinRoom(roomId); // 自动加入新创建的房间
+            }, 1000);
+        } else {
+            msgEl.textContent = data.msg;
+            msgEl.style.color = '#e53e3e';
+        }
+    })
+    .catch(err => {
+        msgEl.textContent = '创建失败，请重试';
+        msgEl.style.color = '#e53e3e';
+        console.error('创建聊天室失败:', err);
+    });
+}
+
+/**
+ * 更新在线用户列表
+ */
+function updateActiveUsers(users) {
+    activeUsers = users;
+    const usersList = document.getElementById('onlineUsersList');
+    if (usersList) {
+        usersList.innerHTML = '';
+        
+        users.forEach(username => {
+            const userItem = document.createElement('div');
+            userItem.className = `user-item ${username === currentUser ? 'me' : ''}`;
+            userItem.textContent = username === currentUser ? `${username} (我)` : username;
+            usersList.appendChild(userItem);
+        });
+    }
+    
+    // 更新顶部用户数量显示
+    const userCountEl = document.getElementById('currentRoomUsers');
+    if (userCountEl) {
+        userCountEl.textContent = `在线: ${users.length}人`;
+    }
+}
+
+/**
+ * 登出功能
+ */
+function logout() {
+    // 清除用户状态
+    currentUser = null;
+    currentRoomId = 'general';
+    lastTimestamp = null;
+    activeUsers = [];
+    rooms = [];
+    
+    // 断开Socket连接
+    socket.disconnect();
+    
+    // 重置UI
+    document.getElementById('pageTitle').style.display = '';
+    document.getElementById('loginArea').style.display = '';
+    document.getElementById('chatPanel').style.display = 'none';
+    const sidebar = document.getElementById('roomSidebar');
+    const chatContent = document.querySelector('.chat-content');
+    if (sidebar) {
+        sidebar.classList.remove('show');
+    }
+    if (chatContent) {
+        chatContent.classList.remove('sidebar-open');
+    }
+    
+    // 清空输入框和消息
+    document.getElementById('login_user').value = '';
+    document.getElementById('login_pass').value = '';
+    document.getElementById('loginMsg').textContent = '';
+    document.getElementById('messages').innerHTML = '';
+    
+    // 重新连接Socket
+    setTimeout(() => {
+        socket.connect();
+    }, 100);
+}
+
+// WebSocket 事件监听
+
+socket.on('connect', function() {
+    console.log('已连接到服务器');
+    isConnected = true;
+});
+
+socket.on('disconnect', function() {
+    console.log('与服务器断开连接');
+    isConnected = false;
+});
+
+socket.on('new_message', function(data){
+    // 检查是否需要显示时间戳标记
+    const showTimestamp = !lastTimestamp || !isSameMinute(data, lastTimestamp);
+    
+    if (showTimestamp) {
+        const formattedTime = formatTimestamp(data);
+        const timestampDiv = document.createElement('div');
+        timestampDiv.className = 'timestamp-divider';
+        timestampDiv.innerHTML = `<span>${formattedTime}</span>`;
+        document.getElementById('messages').appendChild(timestampDiv);
+    }
+    
+    // 创建消息项
+    const messageItem = document.createElement('div');
+    messageItem.className = `message-item ${data.username === currentUser ? 'me' : 'other'}`;
+    
+    const usernameLabel = document.createElement('div');
+    usernameLabel.className = 'username-label';
+    usernameLabel.textContent = data.username;
+    messageItem.appendChild(usernameLabel);
+    
+    const messageBubble = document.createElement('div');
+    messageBubble.className = 'message-bubble';
+    const replaceUrlsWithLinks = (text) => {
+        return text.replace(/(https?:\/\/[\w-]+(\.[\w-]+)+([\w.,@?^=%&:\/~+#-]*[\w@?^=%&\/~+#-])?)/g, '<a href="$1" target="_blank">$1</a>');
+    };
+    messageBubble.innerHTML = replaceUrlsWithLinks(data.msg);
+    messageItem.appendChild(messageBubble);
+    
+    document.getElementById('messages').appendChild(messageItem);
+    
+    lastTimestamp = data;
+    scrollToBottom();
+});
+
+socket.on('room_joined', function(data) {
+    // 更新当前房间信息
+    currentRoomId = data.room_id;
+    const roomNameEl = document.getElementById('currentRoomName');
+    if (roomNameEl) {
+        roomNameEl.textContent = data.room_name;
+    }
+    updateActiveUsers(data.active_users);
+    
+    console.log(`成功加入聊天室: ${data.room_name}`);
+});
+
+socket.on('user_joined', function(data) {
+    if (data.room_id === currentRoomId) {
+        updateActiveUsers(data.active_users);
+        
+        // 显示用户加入消息（排除自己）
+        if (data.username !== currentUser) {
+            const systemMsg = document.createElement('div');
+            systemMsg.className = 'timestamp-divider';
+            systemMsg.innerHTML = `<span>${data.username} 加入了聊天室</span>`;
+            document.getElementById('messages').appendChild(systemMsg);
+            scrollToBottom();
+        }
+    }
+});
+
+socket.on('user_left', function(data) {
+    if (data.room_id === currentRoomId) {
+        updateActiveUsers(data.active_users);
+        
+        // 显示用户离开消息
+        const systemMsg = document.createElement('div');
+        systemMsg.className = 'timestamp-divider';
+        systemMsg.innerHTML = `<span>${data.username} 离开了聊天室</span>`;
+        document.getElementById('messages').appendChild(systemMsg);
+        scrollToBottom();
+    }
+});
+
+socket.on('error', function(data) {
+    alert('错误: ' + data.msg);
+    console.error('Socket错误:', data.msg);
+});
+
+/**
+ * 此函数发送消息到服务器。
+ */
+function sendMessage() {
+    var input = document.getElementById('myMessage');
+    var raw = input.value;
+    
+    if (!currentUser) {
+        alert('请先登录');
+        return;
+    }
+    
+    if (raw.trim() !== "") {
+        socket.emit('send_message', {
+            msg: raw
+        });
+        input.value = '';
+        
+        if (emojiPickerVisible) {
+            emojiPickerVisible = false;
+            document.getElementById('emojiPicker').style.display = 'none';
+            document.removeEventListener('click', closeEmojiPickerOnClickOutside);
+        }
+    } else {
+        alert('不能发送空白消息');
+    }
+}
+
+/**
+ * 此函数自动滚动消息区域到底部。
+ */
+function scrollToBottom() {
+    var messages = document.getElementById('messages');
+    if (messages) {
+        messages.scrollTop = messages.scrollHeight;
+    }
+}
+
+/**
  * 此函数处理历史消息并添加时间戳分隔。
  * @param {Array} messages - 消息列表
  */
 function processHistoricalMessages(messages) {
     const messagesList = document.getElementById('messages');
+    if (!messagesList) return;
+    
     messagesList.innerHTML = "";
     let lastMsgTimestamp = null;
     
@@ -234,7 +561,7 @@ function processHistoricalMessages(messages) {
         const replaceUrlsWithLinks = (text) => {
             return text.replace(/(https?:\/\/[\w-]+(\.[\w-]+)+([\w.,@?^=%&:\/~+#-]*[\w@?^=%&\/~+#-])?)/g, '<a href="$1" target="_blank">$1</a>');
         };
-        messageBubble.innerHTML = replaceUrlsWithLinks(data.msg);  // 使用innerHTML显示链接，同时保留原始换行
+        messageBubble.innerHTML = replaceUrlsWithLinks(data.msg);
         messageItem.appendChild(messageBubble);
         
         // 将消息项添加到消息列表
@@ -254,30 +581,32 @@ function processHistoricalMessages(messages) {
  * 此函数处理用户登录。
  */
 function login() {
+    const username = document.getElementById('login_user').value;
+    const password = document.getElementById('login_pass').value;
+    
+    if (!username || !password) {
+        document.getElementById('loginMsg').textContent = '请输入用户名和密码';
+        return;
+    }
+    
     fetch('/login', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
-            username: document.getElementById('login_user').value,
-            password: document.getElementById('login_pass').value
+            username: username,
+            password: password
         })
     })
     .then(r => r.json())
     .then(data => {
         document.getElementById('loginMsg').textContent = data.msg;
         if(data.success){
-            currentUser = document.getElementById('login_user').value;
-            document.getElementById('pageTitle').style.display = 'none';
-            document.getElementById('loginArea').style.display = 'none';
-            document.getElementById('registerArea').style.display = 'none';
-            document.getElementById('chatPanel').style.display = '';
-            // 拉取历史消息
-            fetch('messages')
-                .then(res => res.json())
-                .then(msgs => {
-                    processHistoricalMessages(msgs);
-                });
+            onLoginSuccess(username);
         }
+    })
+    .catch(err => {
+        document.getElementById('loginMsg').textContent = '登录失败，请重试';
+        console.error('登录错误:', err);
     });
 }
 
@@ -298,6 +627,9 @@ function register() {
         document.getElementById('registerMsg').textContent = data.msg;
         if(data.success){
             showLogin();
+            // 清空注册表单
+            document.getElementById('reg_user').value = '';
+            document.getElementById('reg_pass').value = '';
         }
     });
 }
@@ -350,16 +682,18 @@ function closeEmojiPickerOnClickOutside(event) {
     }
 }
 
-// 当文档加载完成后初始化emoji选择器
+// 当文档加载完成后初始化
 document.addEventListener('DOMContentLoaded', function() {
     // 配置emoji选择器事件
     const emojiPicker = document.querySelector('emoji-picker');
     
-    emojiPicker.addEventListener('emoji-click', event => {
-        const myMessage = document.getElementById('myMessage');
-        myMessage.value += event.detail.unicode;
-        myMessage.focus();
-    });
+    if (emojiPicker) {
+        emojiPicker.addEventListener('emoji-click', event => {
+            const myMessage = document.getElementById('myMessage');
+            myMessage.value += event.detail.unicode;
+            myMessage.focus();
+        });
+    }
     
     // 按回车键发送消息（Enter 发送，Shift+Enter 换行）
     document.getElementById('myMessage').addEventListener('keydown', function(e) {
@@ -369,10 +703,18 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         // Shift+Enter 允许换行
     });
-});
-
-// 检测是否有聊天面板显示并添加相应类名
-document.addEventListener('DOMContentLoaded', function() {
+    
+    // 模态对话框点击外部关闭
+    const createRoomDialog = document.getElementById('createRoomDialog');
+    if (createRoomDialog) {
+        createRoomDialog.addEventListener('click', function(e) {
+            if (e.target === this) {
+                hideCreateRoomDialog();
+            }
+        });
+    }
+    
+    // 检测是否有聊天面板显示并添加相应类名
     const observer = new MutationObserver(function(mutations) {
         mutations.forEach(function(mutation) {
             if (mutation.target.id === 'chatPanel' && 

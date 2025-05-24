@@ -5,7 +5,7 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center; /* 添加垂直居中 */
+    justify-content: center;
     height: 100vh;
     margin: 0;
     padding: 0;
@@ -19,13 +19,14 @@ body {
     font-weight: 700;
     letter-spacing: 0.04em;
     color: #3182ce;
-    margin: 0 0 1rem 0; /* 调整页面标题边距 */
+    margin: 0 0 1rem 0;
     text-align: center;
-    position: absolute; /* 将标题绝对定位 */
-    top: 1rem; /* 固定在顶部 */
+    position: absolute;
+    top: 1rem;
     width: 100%;
 }
 
+/* 登录和注册区域样式 */
 #loginArea, #registerArea {
     display: flex;
     flex-direction: column;
@@ -99,25 +100,231 @@ body {
     letter-spacing: 0.05em;
 }
 
-/* 聊天卡片主面板 */
+/* 聊天面板主体 */
 .chat-panel {
-    width: min(96vw, 720px);
-    height: min(82vh, 700px); /* 限制最大高度 */
+    width: min(98vw, 1200px);
+    height: min(90vh, 800px);
     background: white;
     border-radius: 1.2rem;
     box-shadow: 0 6px 28px rgba(60,90,120,0.11);
     border: 1.5px solid #e2e8f0;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
-    padding: 0;
-    margin: 0 auto;
     overflow: hidden;
-    position: relative; /* 添加相对定位 */
+    position: relative;
 }
 
-#messages {
-    flex: 1 1 auto; /* 允许消息区域伸缩 */
+/* 聊天室顶部栏 */
+.chat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    background: #f8fafc;
+    border-bottom: 1.5px solid #e2e8f0;
+    flex-shrink: 0;
+    z-index: 100;
+}
+
+.room-info h3 {
+    margin: 0;
+    font-size: 1.3rem;
+    color: #2d3748;
+}
+
+.room-info span {
+    font-size: 0.9rem;
+    color: #718096;
+}
+
+.header-actions {
+    display: flex;
+    gap: 0.8rem;
+}
+
+.header-actions button {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    border: 1.5px solid #d3e0ef;
+    border-radius: 0.5rem;
+    background: white;
+    color: #4299e1;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.header-actions button:hover {
+    background: #f0f7ff;
+    border-color: #4299e1;
+}
+
+#logoutBtn {
+    background: #fed7d7;
+    color: #e53e3e;
+    border-color: #feb2b2;
+}
+
+#logoutBtn:hover {
+    background: #fbb6b6;
+}
+
+/* 主要内容区域 */
+.chat-main {
+    flex: 1;
+    display: flex;
+    position: relative;
+    overflow: hidden;
+}
+
+/* 房间侧边栏 - 完全集成到聊天面板内部 */
+.room-sidebar {
+    width: 300px;
+    background: white;
+    border-right: 1.5px solid #e2e8f0;
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    left: -300px;
+    top: 0;
+    bottom: 0;
+    z-index: 200;
+    transition: left 0.3s ease;
+}
+
+.room-sidebar.show {
+    left: 0;
+}
+
+.sidebar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    border-bottom: 1.5px solid #e2e8f0;
+    background: #f8fafc;
+    flex-shrink: 0;
+}
+
+.sidebar-header h4 {
+    margin: 0;
+    color: #2d3748;
+}
+
+.close-sidebar {
+    width: 2rem;
+    height: 2rem;
+    border: none;
+    background: #e2e8f0;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    color: #4a5568;
+}
+
+.close-sidebar:hover {
+    background: #cbd5e0;
+}
+
+.rooms-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.5rem 0;
+}
+
+.room-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.8rem 1.5rem;
+    cursor: pointer;
+    transition: background 0.2s;
+    position: relative;
+}
+
+.room-item:hover {
+    background: #f0f7ff;
+}
+
+.room-item.active {
+    background: #e6f2ff;
+    border-left: 3px solid #4299e1;
+}
+
+/* 添加更平滑的分隔线效果 */
+.room-item:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 1.5rem;
+    right: 1.5rem;
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, #e2e8f0 20%, #e2e8f0 80%, transparent 100%);
+}
+
+/* hover时隐藏分隔线 */
+.room-item:hover::after,
+.room-item:hover + .room-item::after {
+    opacity: 0;
+}
+
+.room-item.active::after,
+.room-item.active + .room-item::after {
+    opacity: 0;
+}
+
+.room-item-info h5 {
+    margin: 0 0 0.2rem 0;
+    font-size: 1rem;
+    color: #2d3748;
+}
+
+.room-item-info span {
+    font-size: 0.8rem;
+    color: #718096;
+}
+
+.sidebar-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1.5px solid #e2e8f0;
+    flex-shrink: 0;
+}
+
+.create-room-btn {
+    width: 100%;
+    padding: 0.8rem;
+    background: #4299e1;
+    color: white;
+    border: none;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background 0.2s;
+}
+
+.create-room-btn:hover {
+    background: #3182ce;
+}
+
+/* 聊天内容区域 */
+.chat-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    transition: margin-left 0.3s ease;
+}
+
+.chat-content.sidebar-open {
+    margin-left: 300px;
+}
+
+/* 消息区域 */
+.messages-container {
+    flex: 1;
     width: 100%;
     margin: 0;
     padding: 1.3rem 1.2rem 0.8rem 1.2rem;
@@ -127,7 +334,35 @@ body {
     list-style: none;
     box-sizing: border-box;
     -webkit-overflow-scrolling: touch;
-    min-height: 100px; /* 设置最小高度，确保在极端情况下仍有显示空间 */
+}
+
+/* 用户侧边栏 */
+.users-sidebar {
+    width: 250px;
+    background: #f8fafc;
+    border-left: 1.5px solid #e2e8f0;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+}
+
+.users-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.5rem 0;
+}
+
+.user-item {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    color: #4a5568;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.user-item.me {
+    background: #e6f2ff;
+    color: #3182ce;
+    font-weight: 600;
 }
 
 /* 消息项容器 */
@@ -157,28 +392,28 @@ body {
 .message-item.me .username-label {
     text-align: right;
     padding-right: 0.5rem;
+    padding-left: 0;
 }
 
-/* 修改消息气泡样式 */
+/* 消息气泡样式 */
 .message-bubble {
     padding: 0.85rem 1.15rem;
     border-radius: 0.95rem;
     width: fit-content;
     line-height: 1.52;
     font-size: 1.13rem;
-    word-break: break-all;
+    word-break: break-word;
     white-space: pre-wrap;
     background: #f1f5fa;
     color: #222a38;
     box-shadow: 0 2px 8px rgba(180,200,240,0.04);
     border: 1.5px solid #b3d8fd;
+}
 
-    /* 链接样式 */
-    & a {
-        color: #3182ce;
-        text-decoration: none;
-        cursor: pointer;
-    }
+.message-bubble a {
+    color: #3182ce;
+    text-decoration: none;
+    cursor: pointer;
 }
 
 .message-item.me .message-bubble {
@@ -192,7 +427,7 @@ body {
     margin-right: auto;
 }
 
-/* 新增时间戳样式 */
+/* 时间戳样式 */
 .timestamp-divider {
     text-align: center;
     margin: 1.5rem 0;
@@ -210,7 +445,8 @@ body {
     display: inline-block;
 }
 
-#inputGroup {
+/* 输入区域 */
+.input-group {
     width: 100%;
     display: flex;
     flex-direction: column;
@@ -219,7 +455,7 @@ body {
     border-top: 1.5px solid #e2e8f0;
     box-sizing: border-box;
     position: relative;
-    flex-shrink: 0; /* 防止输入框区域被压缩 */
+    flex-shrink: 0;
 }
 
 #myMessage {
@@ -238,7 +474,7 @@ body {
     resize: none;
     overflow-y: auto;
     overflow-x: hidden;
-    word-break: break-all;
+    word-break: break-word;
     transition: all 0.17s;
     line-height: 1.55;
     box-sizing: border-box;
@@ -248,6 +484,7 @@ body {
 #myMessage:focus {
     border-color: #4299e1;
     box-shadow: 0 2px 8px rgba(66, 153, 225, 0.09);
+    outline: none;
 }
 
 .input-buttons {
@@ -306,6 +543,117 @@ body {
     transform: translateY(-2px) scale(1.045);
 }
 
+/* 模态对话框样式 */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 1rem;
+    width: min(90vw, 400px);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem 1.5rem 1rem 1.5rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.modal-header h3 {
+    margin: 0;
+    color: #2d3748;
+}
+
+.close-modal {
+    width: 2rem;
+    height: 2rem;
+    border: none;
+    background: #e2e8f0;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    color: #4a5568;
+}
+
+.close-modal:hover {
+    background: #cbd5e0;
+}
+
+.modal-body {
+    padding: 1rem 1.5rem;
+}
+
+.modal-body input {
+    width: 100%;
+    margin: 0.5rem 0;
+    padding: 0.8rem 1rem;
+    border: 1.5px solid #d3e0ef;
+    border-radius: 0.5rem;
+    font-size: 1rem;
+    box-sizing: border-box;
+}
+
+.modal-body input:focus {
+    border-color: #4299e1;
+    outline: none;
+}
+
+.modal-msg {
+    margin-top: 0.8rem;
+    text-align: center;
+    font-size: 0.9rem;
+}
+
+.modal-footer {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem 1.5rem 1.5rem 1.5rem;
+    justify-content: flex-end;
+}
+
+.confirm-btn, .cancel-btn {
+    padding: 0.8rem 1.5rem;
+    border: none;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+}
+
+.confirm-btn {
+    background: #4299e1;
+    color: white;
+}
+
+.confirm-btn:hover {
+    background: #3182ce;
+}
+
+.cancel-btn {
+    background: #e2e8f0;
+    color: #4a5568;
+}
+
+.cancel-btn:hover {
+    background: #d3e0ef;
+}
+
 /* emoji-picker样式覆盖 */
 emoji-picker {
     position: absolute;
@@ -330,8 +678,40 @@ emoji-picker {
     display: none;
 }
 
-/* 响应式调整 */
-@media (max-width: 480px) {
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .chat-panel {
+        width: 100vw;
+        height: 100vh;
+        border-radius: 0;
+    }
+    
+    .room-sidebar {
+        width: 280px;
+        left: -280px;
+    }
+    
+    .room-sidebar.show {
+        left: 0;
+    }
+    
+    .chat-content.sidebar-open {
+        margin-left: 0;
+    }
+    
+    .users-sidebar {
+        display: none;
+    }
+    
+    .header-actions {
+        gap: 0.5rem;
+    }
+    
+    .header-actions button {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.8rem;
+    }
+    
     emoji-picker {
         --num-columns: 6;
         max-width: 95vw;
@@ -339,79 +719,28 @@ emoji-picker {
         left: 50%;
         transform: translateX(-50%);
     }
+}
+
+@media (max-width: 480px) {
+    .room-sidebar {
+        width: 100vw;
+        left: -100vw;
+    }
+    
+    .room-sidebar.show {
+        left: 0;
+    }
+    
+    .modal-content {
+        width: 95vw;
+    }
     
     #sendBtn {
         padding: 0 1.5rem;
     }
 }
 
-/* 针对非常小屏幕的响应式调整 */
-@media (max-height: 600px) {
-    .chat-panel {
-        height: min(92vh, 600px); /* 增加面板在小屏幕上的占比 */
-    }
-    
-    #messages {
-        min-height: 80px; /* 减少消息区域的最小高度 */
-    }
-    
-    #myMessage {
-        min-height: 3rem;
-        height: 3.6rem;
-    }
-    
-    #inputGroup {
-        padding: 0.6rem 1.2rem 0.8rem 1.2rem;
-    }
-    
-    #emojiBtn, #sendBtn {
-        height: 2.8rem;
-    }
-}
-
-/* 针对极小屏幕的调整 */
-@media (max-height: 480px) {
-    #pageTitle {
-        font-size: 1.6rem;
-        margin-bottom: 0.5rem;
-    }
-    
-    .chat-panel {
-        height: min(94vh, 480px);
-    }
-    
-    #messages {
-        min-height: 60px;
-        padding: 0.8rem 1rem 0.5rem 1rem;
-    }
-    
-    #myMessage {
-        min-height: 2.5rem;
-        height: 3rem;
-        padding: 0.6rem 1rem;
-        margin-bottom: 0.6rem;
-    }
-    
-    #inputGroup {
-        padding: 0.5rem 1rem 0.7rem 1rem;
-    }
-    
-    #emojiBtn, #sendBtn {
-        height: 2.5rem;
-    }
-    
-    .message-bubble {
-        padding: 0.7rem 1rem;
-        font-size: 1rem;
-    }
-    
-    .username-label {
-        font-size: 0.8rem;
-        margin-bottom: 0.3rem;
-    }
-}
-
-/* 当登录和聊天面板显示时的页面标题调整 */
+/* 当聊天面板显示时隐藏页面标题 */
 body.chat-active #pageTitle {
     display: none;
 }
