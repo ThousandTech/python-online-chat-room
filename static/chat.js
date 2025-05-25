@@ -6,6 +6,10 @@ var emojiPickerVisible = false;
 var rooms = [];
 var activeUsers = [];
 var isConnected = false;
+var isLoadingMessages = false;
+var hasMoreMessages = true;
+var currentOffset = 0;
+
 
 /**
  * 此函数格式化时间戳为易读格式。
@@ -39,7 +43,7 @@ function formatTimestamp(timestamp) {
         return data.time; // 只显示时间 HH:MM
     } else if (isSameWeek) {
         const weekdays = ["日", "一", "二", "三", "四", "五", "六"];
-        return `周${weekdays[data.weekday]} ${data.time}`;
+        return `周${weekdays[msgDate.getDay()]} ${data.time}`;
     } else if (isSameYear) {
         return `${data.month}月${data.day}日 ${data.time}`;
     } else {
@@ -56,23 +60,35 @@ function formatTimestamp(timestamp) {
 function isSameMinute(timestamp1, timestamp2) {
     if (!timestamp1 || !timestamp2) return false;
     
-    // 尝试从timestamp_data中获取时间戳，如果不存在则尝试从timestamp字符串解析
     let time1, time2;
     
-    if (timestamp1.timestamp_data) {
+    // 获取第一个时间戳的Unix时间戳值
+    if (timestamp1.timestamp_data && timestamp1.timestamp_data.timestamp) {
         time1 = timestamp1.timestamp_data.timestamp;
-    } else {
+    } else if (timestamp1.ts) {
+        time1 = timestamp1.ts;
+    } else if (timestamp1.timestamp) {
         time1 = new Date(timestamp1.timestamp).getTime() / 1000;
+    } else {
+        return false;
     }
     
-    if (timestamp2.timestamp_data) {
+    // 获取第二个时间戳的Unix时间戳值
+    if (timestamp2.timestamp_data && timestamp2.timestamp_data.timestamp) {
         time2 = timestamp2.timestamp_data.timestamp;
-    } else {
+    } else if (timestamp2.ts) {
+        time2 = timestamp2.ts;
+    } else if (timestamp2.timestamp) {
         time2 = new Date(timestamp2.timestamp).getTime() / 1000;
+    } else {
+        return false;
     }
     
     // 检查时间戳是否在同一分钟内
-    return Math.floor(time1 / 60) === Math.floor(time2 / 60);
+    const minute1 = Math.floor(time1 / 60);
+    const minute2 = Math.floor(time2 / 60);
+    
+    return minute1 === minute2;
 }
 
 /**
@@ -210,22 +226,62 @@ function joinRoom(roomId) {
     }
     
     currentRoomId = roomId;
-    socket.emit('join_room', {
-        username: currentUser,
-        room_id: roomId
-    });
+    currentOffset = 0;
+    hasMoreMessages = true;
     
     // 清空消息区域
     document.getElementById('messages').innerHTML = '';
     lastTimestamp = null;
     
-    // 加载该聊天室的历史消息
+    // 显示加载提示
+    const messagesContainer = document.getElementById('messages');
+    messagesContainer.innerHTML = '<div class="timestamp-divider"><span>正在加载历史消息...</span></div>';
+    
+    // 设置标记，表示正在加载历史消息
+    messagesContainer.setAttribute('data-loading', 'true');
+    
+    // 先加载历史消息，再发送加入房间请求
     fetch(`/rooms/${roomId}/messages`)
         .then(res => res.json())
-        .then(msgs => {
-            processHistoricalMessages(msgs);
+        .then(data => {
+            console.log('获取到的消息数据:', data);
+            
+            // 检查数据格式
+            let messages;
+            if (Array.isArray(data)) {
+                messages = data;
+            } else if (data.messages && Array.isArray(data.messages)) {
+                messages = data.messages;
+            } else {
+                console.error('无效的消息数据格式:', data);
+                messages = [];
+            }
+            
+            // 标记加载成功
+            messagesContainer.setAttribute('data-loaded', 'true');
+            messagesContainer.removeAttribute('data-loading');
+            
+            processHistoricalMessages(messages);
+            
+            // 历史消息加载完成后再加入房间
+            socket.emit('join_room', {
+                username: currentUser,
+                room_id: roomId
+            });
         })
-        .catch(err => console.error('加载聊天室消息失败:', err));
+        .catch(err => {
+            console.error('加载聊天室消息失败:', err);
+            // 标记加载失败
+            messagesContainer.setAttribute('data-load-failed', 'true');
+            messagesContainer.removeAttribute('data-loading');
+            messagesContainer.innerHTML = '<div class="timestamp-divider"><span>加载历史消息失败</span></div>';
+            
+            // 即使加载失败也要加入房间
+            socket.emit('join_room', {
+                username: currentUser,
+                room_id: roomId
+            });
+        });
     
     // 更新UI
     updateRoomsList();
@@ -240,6 +296,51 @@ function joinRoom(roomId) {
         chatContent.classList.remove('sidebar-open');
     }
 }
+
+socket.on('room_joined', function(data) {
+    // 更新当前房间信息
+    currentRoomId = data.room_id;
+    const roomNameEl = document.getElementById('currentRoomName');
+    if (roomNameEl) {
+        roomNameEl.textContent = data.room_name;
+    }
+    updateActiveUsers(data.active_users);
+    
+    // 只有在初次加载失败或者消息区域确实为空时才备用加载
+    const messagesContainer = document.getElementById('messages');
+    const isLoadFailed = messagesContainer && messagesContainer.hasAttribute('data-load-failed');
+    const isEmpty = messagesContainer && messagesContainer.children.length === 0;
+    const notLoaded = messagesContainer && !messagesContainer.hasAttribute('data-loaded') && !messagesContainer.hasAttribute('data-loading');
+    
+    if (messagesContainer && (isLoadFailed || isEmpty || notLoaded)) {
+        console.log('备用加载历史消息...');
+        fetch(`/rooms/${data.room_id}/messages`)
+            .then(res => res.json())
+            .then(responseData => {
+                console.log('备用加载的消息数据:', responseData);
+                
+                // 检查数据格式
+                let messages;
+                if (Array.isArray(responseData)) {
+                    messages = responseData;
+                } else if (responseData.messages && Array.isArray(responseData.messages)) {
+                    messages = responseData.messages;
+                } else {
+                    console.error('无效的消息数据格式:', responseData);
+                    messages = [];
+                }
+                
+                // 标记已加载
+                messagesContainer.setAttribute('data-loaded', 'true');
+                messagesContainer.removeAttribute('data-load-failed');
+                
+                processHistoricalMessages(messages);
+            })
+            .catch(err => console.error('备用加载聊天室消息失败:', err));
+    }
+    
+    console.log(`成功加入聊天室: ${data.room_name}`);
+});
 
 /**
  * 切换房间列表侧边栏
@@ -437,18 +538,6 @@ socket.on('new_message', function(data){
     scrollToBottom();
 });
 
-socket.on('room_joined', function(data) {
-    // 更新当前房间信息
-    currentRoomId = data.room_id;
-    const roomNameEl = document.getElementById('currentRoomName');
-    if (roomNameEl) {
-        roomNameEl.textContent = data.room_name;
-    }
-    updateActiveUsers(data.active_users);
-    
-    console.log(`成功加入聊天室: ${data.room_name}`);
-});
-
 socket.on('user_joined', function(data) {
     if (data.room_id === currentRoomId) {
         updateActiveUsers(data.active_users);
@@ -529,19 +618,37 @@ function processHistoricalMessages(messages) {
     if (!messagesList) return;
     
     messagesList.innerHTML = "";
-    let lastMsgTimestamp = null;
     
-    messages.forEach(function(data){
-        // 检查是否需要显示时间戳标记
-        const showTimestamp = !lastMsgTimestamp || !isSameMinute(data, lastMsgTimestamp);
+    // 首先确保所有消息都有标准化的时间戳格式
+    const processedMessages = messages.map(msg => expandMessageTimestamp(msg));
+    
+    // 记录上一个添加的元素类型，用于避免连续添加时间戳
+    let lastAddedType = null;
+    
+    processedMessages.forEach(function(data, index){
+        // 决定是否显示时间戳
+        let showTimestamp = false;
         
-        // 如果需要显示时间戳，先添加一个时间戳分隔符
-        if (showTimestamp) {
+        if (index === 0) {
+            // 第一条消息总是显示时间戳
+            showTimestamp = true;
+        } else {
+            // 直接比较当前消息和上一条消息的分钟值
+            const prevMsg = processedMessages[index - 1];
+            const currMinute = Math.floor(data.timestamp_data.timestamp / 60);
+            const prevMinute = Math.floor(prevMsg.timestamp_data.timestamp / 60);
+            
+            showTimestamp = currMinute !== prevMinute;
+        }
+        
+        // 避免连续添加时间戳分隔符
+        if (showTimestamp && lastAddedType !== 'timestamp') {
             const formattedTime = formatHistoricalTimestamp(data);
             const timestampDiv = document.createElement('div');
             timestampDiv.className = 'timestamp-divider';
             timestampDiv.innerHTML = `<span>${formattedTime}</span>`;
             messagesList.appendChild(timestampDiv);
+            lastAddedType = 'timestamp';
         }
         
         // 创建消息项容器
@@ -557,7 +664,6 @@ function processHistoricalMessages(messages) {
         // 添加消息气泡
         const messageBubble = document.createElement('div');
         messageBubble.className = 'message-bubble';
-        // 将消息中的URL转换为可点击链接
         const replaceUrlsWithLinks = (text) => {
             return text.replace(/(https?:\/\/[\w-]+(\.[\w-]+)+([\w.,@?^=%&:\/~+#-]*[\w@?^=%&\/~+#-])?)/g, '<a href="$1" target="_blank">$1</a>');
         };
@@ -566,13 +672,15 @@ function processHistoricalMessages(messages) {
         
         // 将消息项添加到消息列表
         messagesList.appendChild(messageItem);
-        
-        // 更新上一条消息的时间戳
-        lastMsgTimestamp = data;
+        lastAddedType = 'message';
     });
     
-    // 全局变量保存最后一条消息时间戳
-    lastTimestamp = messages.length > 0 ? messages[messages.length-1] : null;
+    // 修复：正确设置全局lastTimestamp，避免与新消息时间戳冲突
+    if (processedMessages.length > 0) {
+        lastTimestamp = processedMessages[processedMessages.length - 1];
+    } else {
+        lastTimestamp = null;
+    }
     
     scrollToBottom();
 }
@@ -694,6 +802,17 @@ document.addEventListener('DOMContentLoaded', function() {
             myMessage.focus();
         });
     }
+
+    const messagesContainer = document.getElementById('messages');
+
+    if (messagesContainer) {
+        messagesContainer.addEventListener('scroll', function() {
+            // 当滚动到顶部附近时加载更多消息
+            if (this.scrollTop < 100 && hasMoreMessages && !isLoadingMessages) {
+                loadMoreMessages();
+            }
+        });
+    }
     
     // 按回车键发送消息（Enter 发送，Shift+Enter 换行）
     document.getElementById('myMessage').addEventListener('keydown', function(e) {
@@ -733,3 +852,173 @@ document.addEventListener('DOMContentLoaded', function() {
         observer.observe(chatPanel, {attributes: true});
     }
 });
+
+/**
+ * 向上滚动加载更多历史消息
+ */
+function loadMoreMessages() {
+    if (isLoadingMessages || !hasMoreMessages || !currentRoomId) {
+        return;
+    }
+    
+    isLoadingMessages = true;
+    currentOffset += 50; // 每次加载50条
+    
+    fetch(`/rooms/${currentRoomId}/messages?limit=50&offset=${currentOffset}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.messages && data.messages.length > 0) {
+                prependHistoricalMessages(data.messages);
+                hasMoreMessages = data.has_more;
+            } else {
+                hasMoreMessages = false;
+            }
+        })
+        .catch(err => {
+            console.error('加载更多消息失败:', err);
+        })
+        .finally(() => {
+            isLoadingMessages = false;
+        });
+}
+
+/**
+ * 在消息列表顶部添加历史消息
+ * @param {Array} messages - 要添加的历史消息列表
+ */
+function prependHistoricalMessages(messages) {
+    const messagesList = document.getElementById('messages');
+    const scrollTop = messagesList.scrollTop;
+    const scrollHeight = messagesList.scrollHeight;
+    
+    // 创建临时容器来保存新消息
+    const tempContainer = document.createElement('div');
+    
+    // 首先确保所有消息都有标准化的时间戳格式
+    const processedMessages = messages.map(msg => expandMessageTimestamp(msg));
+    
+    // 记录上一个添加的元素类型，用于避免连续添加时间戳
+    let lastAddedType = null;
+    // 读取当前列表顶部第一个节点（初始批次的第1条消息的时间戳）
+    const existingFirstChild = messagesList.firstChild;
+    const existingFirstTimestamp = (
+        existingFirstChild &&
+        existingFirstChild.classList.contains('timestamp-divider')
+    ) ? existingFirstChild.textContent.trim() : null;
+ 
+    
+    // 将消息数组倒序处理，最新的消息在前
+    processedMessages.reverse().forEach(function(data, index) {
+        // 决定是否显示时间戳
+        let showTimestamp = false;
+        
+        if (index === 0) {
+            // 仅当这条旧消息的格式化时间，与顶部已有的时间戳不同时才显示
+            const formattedTime = formatHistoricalTimestamp(data);
+            showTimestamp = formattedTime !== existingFirstTimestamp;
+        } 
+        else {
+            // 直接比较当前消息和上一条消息的分钟值
+            const prevMsg = processedMessages[index - 1];
+            const currMinute = Math.floor(data.timestamp_data.timestamp / 60);
+            const prevMinute = Math.floor(prevMsg.timestamp_data.timestamp / 60);
+            
+            showTimestamp = currMinute !== prevMinute;
+        }
+        
+        // 避免连续添加时间戳分隔符
+        if (showTimestamp && lastAddedType !== 'timestamp') {
+            const formattedTime = formatHistoricalTimestamp(data);
+            const timestampDiv = document.createElement('div');
+            timestampDiv.className = 'timestamp-divider';
+            timestampDiv.innerHTML = `<span>${formattedTime}</span>`;
+            tempContainer.appendChild(timestampDiv);
+            lastAddedType = 'timestamp';
+        }
+        
+        // 创建消息项
+        const messageItem = document.createElement('div');
+        messageItem.className = `message-item ${data.username === currentUser ? 'me' : 'other'}`;
+        
+        const usernameLabel = document.createElement('div');
+        usernameLabel.className = 'username-label';
+        usernameLabel.textContent = data.username;
+        messageItem.appendChild(usernameLabel);
+        
+        const messageBubble = document.createElement('div');
+        messageBubble.className = 'message-bubble';
+        const replaceUrlsWithLinks = (text) => {
+            return text.replace(/(https?:\/\/[\w-]+(\.[\w-]+)+([\w.,@?^=%&:\/~+#-]*[\w@?^=%&\/~+#-])?)/g, '<a href="$1" target="_blank">$1</a>');
+        };
+        messageBubble.innerHTML = replaceUrlsWithLinks(data.msg);
+        messageItem.appendChild(messageBubble);
+        
+        tempContainer.appendChild(messageItem);
+        lastAddedType = 'message';
+    });
+    
+    // 将新消息插入到消息列表顶部
+    while (tempContainer.firstChild) {
+        messagesList.insertBefore(tempContainer.firstChild, messagesList.firstChild);
+    }
+    
+    // 保持滚动位置
+    const newScrollHeight = messagesList.scrollHeight;
+    messagesList.scrollTop = scrollTop + (newScrollHeight - scrollHeight);
+}
+
+/**
+ * 扩展消息的时间戳信息（前端版本，用于备用）
+ * @param {Object} message - 消息对象
+ * @returns {Object} 包含完整时间戳信息的消息对象
+ */
+function expandMessageTimestamp(message) {
+    if (message.timestamp_data) {
+        return message; // 已经有完整时间信息
+    }
+    
+    let timestamp;
+    let date;
+    
+    // 优先使用 ts 字段（Unix时间戳）
+    if (message.ts) {
+        timestamp = message.ts;
+        date = new Date(timestamp * 1000);
+    } else if (message.timestamp) {
+        // 兼容旧的字符串格式
+        date = new Date(message.timestamp);
+        timestamp = Math.floor(date.getTime() / 1000);
+    } else {
+        // 默认使用当前时间
+        date = new Date();
+        timestamp = Math.floor(date.getTime() / 1000);
+    }
+    
+    // 确保时区为北京时间
+    const beijingDate = new Date(date.toLocaleString("en-US", {timeZone: "Asia/Shanghai"}));
+    
+    // 生成完整时间信息
+    message.timestamp_data = {
+        full: beijingDate.getFullYear() + '-' + 
+              String(beijingDate.getMonth() + 1).padStart(2, '0') + '-' + 
+              String(beijingDate.getDate()).padStart(2, '0') + ' ' +
+              String(beijingDate.getHours()).padStart(2, '0') + ':' +
+              String(beijingDate.getMinutes()).padStart(2, '0') + ':' +
+              String(beijingDate.getSeconds()).padStart(2, '0'),
+        date: beijingDate.getFullYear() + '-' + 
+              String(beijingDate.getMonth() + 1).padStart(2, '0') + '-' + 
+              String(beijingDate.getDate()).padStart(2, '0'),
+        time: String(beijingDate.getHours()).padStart(2, '0') + ':' +
+              String(beijingDate.getMinutes()).padStart(2, '0'),
+        year: beijingDate.getFullYear(),
+        month: beijingDate.getMonth() + 1,
+        day: beijingDate.getDate(),
+        weekday: beijingDate.getDay() === 0 ? 7 : beijingDate.getDay(),
+        hour: beijingDate.getHours(),
+        minute: beijingDate.getMinutes(),
+        second: beijingDate.getSeconds(),
+        timestamp: timestamp
+    };
+    
+    return message;
+}

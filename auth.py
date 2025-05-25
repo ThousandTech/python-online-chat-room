@@ -1,5 +1,3 @@
-import json# 导入json模块解析和保存json
-import os# 导入os模块进行文件操作
 from werkzeug.security import generate_password_hash, check_password_hash# 导入werkzeug.security模块进行密码加密和校验
 
 USERS_FILE = 'data/users/users.json'# 用户数据文件路径

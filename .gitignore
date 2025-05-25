@@ -10,6 +10,7 @@ build/
 !data/
 data/users/*.json
 data/rooms/*.json
+data/rooms/*.jsonl
 
 # venv
 venv/
