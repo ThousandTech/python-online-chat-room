@@ -47,3 +47,48 @@ def get_message_timestamp(time_str=None):
     }
     
     return timestamp
+
+def expand_message_timestamp(message_data):
+    """
+    为历史消息扩展完整的时间戳信息
+    Args:
+        message_data (dict): 消息数据
+    Returns:
+        dict: 包含完整时间戳信息的消息数据
+    """
+    # 如果已经有完整时间信息，直接返回
+    if 'timestamp_data' in message_data:
+        return message_data
+    
+    # 优先使用 ts 字段（Unix时间戳），其次使用 timestamp 字符串
+    if 'ts' in message_data:
+        timestamp = message_data['ts']
+        dt = datetime.fromtimestamp(timestamp, timezone(timedelta(hours=8)))
+    else:
+        # 兼容旧格式
+        timestamp_str = message_data.get('timestamp', '')
+        try:
+            dt = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S")
+            dt = dt.replace(tzinfo=timezone(timedelta(hours=8)))
+            timestamp = int(dt.timestamp())
+        except ValueError:
+            # 如果解析失败，使用当前时间
+            dt = datetime.now(timezone(timedelta(hours=8)))
+            timestamp = int(dt.timestamp())
+    
+    # 生成完整时间信息
+    message_data['timestamp_data'] = {
+        'full': dt.strftime("%Y-%m-%d %H:%M:%S"),
+        'date': dt.strftime("%Y-%m-%d"),
+        'time': dt.strftime("%H:%M"),
+        'year': dt.year,
+        'month': dt.month,
+        'day': dt.day,
+        'weekday': dt.weekday() + 1,
+        'hour': dt.hour,
+        'minute': dt.minute,
+        'second': dt.second,
+        'timestamp': timestamp
+    }
+    
+    return message_data

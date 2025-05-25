@@ -1,10 +1,11 @@
 from flask import Flask, request, jsonify, render_template
 # 导入Flask类，request变量(获取前端数据)，jsonify函数(给前端返回json)，ender_template函数(返回html)
-from flask_socketio import SocketIO, send,join_room, leave_room, emit# 导入SocketIO类(给Flask应用加上 WebSocket)和send函数(用于广播消息)
+from flask_socketio import SocketIO, send,join_room, leave_room, emit
+# 导入SocketIO类(给Flask应用加上 WebSocket)和send函数(用于广播消息)
+
 
 import auth# 导入自定义auth模块用于登陆与注册功能
-import messages# 导入自定义messages模块用于消息存储功能
-import timeutils# 导入自定义timeutils模块用于时间处理功能
+import timeutils# 导入时间工具模块
 from chatroom import chat_manager  # 导入聊天室管理器
 
 app = Flask(__name__)# 创建应用实例'app'
@@ -61,15 +62,27 @@ def get_rooms():
 
 @app.route('/rooms/<room_id>/messages', methods=['GET'])
 def get_room_messages(room_id):
-    """获取指定聊天室的历史消息"""
+    """
+    支持翻页的消息API（更新版）
+    """
     room = chat_manager.get_room(room_id)
     if not room:
         return jsonify({"error": "聊天室不存在"}), 404
     
-    limit = request.args.get('limit', type=int)
-    messages = room.get_messages(limit)
-    return jsonify(messages)
+    limit = request.args.get('limit', 50, type=int)
+    offset = request.args.get('offset', 0, type=int)
+    
+    print(f"[DEBUG] 请求参数 - room_id: {room_id}, limit: {limit}, offset: {offset}")
 
+    result = room.get_messages(limit, offset)
+    
+    # 为历史消息扩展时间戳信息
+    for message in result['messages']:
+        timeutils.expand_message_timestamp(message)
+
+    print(f"[DEBUG] 返回结果 - 消息数量: {len(result['messages'])}, 还有更多: {result['has_more']}, 总计: {result['total_count']}")
+    
+    return jsonify(result)
 @app.route('/rooms', methods=['POST'])
 def create_room():
     """创建新聊天室"""
