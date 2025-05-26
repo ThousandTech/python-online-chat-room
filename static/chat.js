@@ -9,7 +9,207 @@ var isConnected = false;
 var isLoadingMessages = false;
 var hasMoreMessages = true;
 var currentOffset = 0;
+let heartbeatInterval;
 
+// 修改socket连接处理，添加身份验证和心跳启动
+socket.on('connect', function() {
+    console.log('已连接到服务器');
+    isConnected = true;
+    
+    // 如果已登录，发送身份验证
+    const token = localStorage.getItem('chatToken');
+    if (token) {
+        socket.emit('authenticate', { token: token });
+    }
+    
+    // 启动心跳
+    startHeartbeat();
+});
+
+socket.on('token_renewed', data => {
+  localStorage.setItem('chatToken', data.token);
+});
+
+// 在断开连接时清理心跳
+socket.on('disconnect', function() {
+    console.log('与服务器断开连接');
+    isConnected = false;
+    clearInterval(heartbeatInterval);
+});
+
+// 添加认证相关的事件处理
+socket.on('authentication_success', function(data) {
+    console.log('身份验证成功:', data.username);
+    
+    if (!currentUser && data.username) {
+        // 首次登录流程
+        currentUser = data.username;
+        onLoginSuccess(data.username);
+    } 
+    else {
+        // 脱机重连后，确保重新加入大厅
+        autoJoinDefaultRoom();
+    }
+});
+
+socket.on('authentication_failed', function(data) {
+    console.error('身份验证失败:', data.message);
+    // 清除无效的token
+    localStorage.removeItem('chatToken');
+    localStorage.removeItem('chatUsername');
+    
+    // 如果当前有用户登录，提示重新登录
+    if (currentUser) {
+        alert('登录已过期，请重新登录');
+        logout();
+    }
+});
+
+socket.on('session_expired', function(data) {
+    console.error('会话已过期:', data.message);
+    // 清除无效的token
+    localStorage.removeItem('chatToken');
+    localStorage.removeItem('chatUsername');
+    
+    // 提示用户重新登录
+    alert('会话已过期，请重新登录');
+    logout();
+});
+
+// 添加心跳机制
+function startHeartbeat() {
+  clearInterval(heartbeatInterval);
+  heartbeatInterval = setInterval(() => {
+    if (socket.connected && currentUser) {
+      const token = localStorage.getItem('chatToken');
+      socket.emit('heartbeat', {
+        username: currentUser,
+        token: token
+      });
+    }
+  }, 30000);
+}
+
+// 页面关闭前发送离线信息
+window.addEventListener('beforeunload', function() {
+    if (socket.connected && currentUser) {
+        const token = localStorage.getItem('chatToken');
+        if (token) {
+            // 使用sendBeacon API发送离线状态，即使页面关闭也能完成请求
+            navigator.sendBeacon('/api/offline', JSON.stringify({
+                username: currentUser,
+                token: token
+            }));
+        }
+    }
+});
+
+// 修改需要授权的API请求，添加Token
+function loadRooms() {
+    const token = localStorage.getItem('chatToken');
+    
+    fetch('/rooms', {
+        headers: token ? {
+            'Authorization': `Bearer ${token}`
+        } : {}
+    })
+    .then(res => res.json())
+    .then(roomsData => {
+        rooms = roomsData;
+        updateRoomsList();
+    })
+    .catch(err => console.error('加载聊天室列表失败:', err));
+}
+
+// 修改加入房间函数，添加Token
+function joinRoom(roomId) {
+    if (!currentUser) {
+        alert('请先登录');
+        return;
+    }
+    
+    if (roomId === currentRoomId) {
+        toggleRoomList(); // 如果是当前房间，则关闭侧边栏
+        return;
+    }
+    
+    currentRoomId = roomId;
+    currentOffset = 0;
+    hasMoreMessages = true;
+    
+    // 清空消息区域
+    document.getElementById('messages').innerHTML = '';
+    lastTimestamp = null;
+    
+    // 显示加载提示
+    const messagesContainer = document.getElementById('messages');
+    messagesContainer.innerHTML = '<div class="timestamp-divider"><span>正在加载历史消息...</span></div>';
+    
+    // 设置标记，表示正在加载历史消息
+    messagesContainer.setAttribute('data-loading', 'true');
+    
+    const token = localStorage.getItem('chatToken');
+    
+    // 先加载历史消息，再发送加入房间请求
+    fetch(`/rooms/${roomId}/messages`, {
+        headers: token ? {
+            'Authorization': `Bearer ${token}`
+        } : {}
+    })
+        .then(res => res.json())
+        .then(data => {
+            console.log('获取到的消息数据:', data);
+            
+            // 检查数据格式
+            let messages;
+            if (Array.isArray(data)) {
+                messages = data;
+            } else if (data.messages && Array.isArray(data.messages)) {
+                messages = data.messages;
+            } else {
+                console.error('无效的消息数据格式:', data);
+                messages = [];
+            }
+            
+            // 标记加载成功
+            messagesContainer.setAttribute('data-loaded', 'true');
+            messagesContainer.removeAttribute('data-loading');
+            
+            processHistoricalMessages(messages);
+            
+            // 历史消息加载完成后再加入房间
+            socket.emit('join_room', {
+                username: currentUser,
+                room_id: roomId
+            });
+        })
+        .catch(err => {
+            console.error('加载聊天室消息失败:', err);
+            // 标记加载失败
+            messagesContainer.setAttribute('data-load-failed', 'true');
+            messagesContainer.removeAttribute('data-loading');
+            messagesContainer.innerHTML = '<div class="timestamp-divider"><span>加载历史消息失败</span></div>';
+            
+            // 即使加载失败也要加入房间
+            socket.emit('join_room', {
+                username: currentUser,
+                room_id: roomId
+            });
+        });
+    
+    // 更新UI
+    updateRoomsList();
+    
+    // 关闭侧边栏
+    const sidebar = document.getElementById('roomSidebar');
+    const chatContent = document.getElementById('chatContent') || document.querySelector('.chat-content');
+    if (sidebar) {
+        sidebar.classList.remove('show');
+    }
+    if (chatContent) {
+        chatContent.classList.remove('sidebar-open');
+    }
+}
 
 /**
  * 此函数格式化时间戳为易读格式。
@@ -174,19 +374,6 @@ function autoJoinDefaultRoom() {
 }
 
 /**
- * 加载聊天室列表
- */
-function loadRooms() {
-    fetch('/rooms')
-        .then(res => res.json())
-        .then(roomsData => {
-            rooms = roomsData;
-            updateRoomsList();
-        })
-        .catch(err => console.error('加载聊天室列表失败:', err));
-}
-
-/**
  * 更新聊天室列表显示
  */
 function updateRoomsList() {
@@ -209,92 +396,6 @@ function updateRoomsList() {
         
         roomsList.appendChild(roomItem);
     });
-}
-
-/**
- * 加入聊天室
- */
-function joinRoom(roomId) {
-    if (!currentUser) {
-        alert('请先登录');
-        return;
-    }
-    
-    if (roomId === currentRoomId) {
-        toggleRoomList(); // 如果是当前房间，则关闭侧边栏
-        return;
-    }
-    
-    currentRoomId = roomId;
-    currentOffset = 0;
-    hasMoreMessages = true;
-    
-    // 清空消息区域
-    document.getElementById('messages').innerHTML = '';
-    lastTimestamp = null;
-    
-    // 显示加载提示
-    const messagesContainer = document.getElementById('messages');
-    messagesContainer.innerHTML = '<div class="timestamp-divider"><span>正在加载历史消息...</span></div>';
-    
-    // 设置标记，表示正在加载历史消息
-    messagesContainer.setAttribute('data-loading', 'true');
-    
-    // 先加载历史消息，再发送加入房间请求
-    fetch(`/rooms/${roomId}/messages`)
-        .then(res => res.json())
-        .then(data => {
-            console.log('获取到的消息数据:', data);
-            
-            // 检查数据格式
-            let messages;
-            if (Array.isArray(data)) {
-                messages = data;
-            } else if (data.messages && Array.isArray(data.messages)) {
-                messages = data.messages;
-            } else {
-                console.error('无效的消息数据格式:', data);
-                messages = [];
-            }
-            
-            // 标记加载成功
-            messagesContainer.setAttribute('data-loaded', 'true');
-            messagesContainer.removeAttribute('data-loading');
-            
-            processHistoricalMessages(messages);
-            
-            // 历史消息加载完成后再加入房间
-            socket.emit('join_room', {
-                username: currentUser,
-                room_id: roomId
-            });
-        })
-        .catch(err => {
-            console.error('加载聊天室消息失败:', err);
-            // 标记加载失败
-            messagesContainer.setAttribute('data-load-failed', 'true');
-            messagesContainer.removeAttribute('data-loading');
-            messagesContainer.innerHTML = '<div class="timestamp-divider"><span>加载历史消息失败</span></div>';
-            
-            // 即使加载失败也要加入房间
-            socket.emit('join_room', {
-                username: currentUser,
-                room_id: roomId
-            });
-        });
-    
-    // 更新UI
-    updateRoomsList();
-    
-    // 关闭侧边栏
-    const sidebar = document.getElementById('roomSidebar');
-    const chatContent = document.getElementById('chatContent') || document.querySelector('.chat-content');
-    if (sidebar) {
-        sidebar.classList.remove('show');
-    }
-    if (chatContent) {
-        chatContent.classList.remove('sidebar-open');
-    }
 }
 
 socket.on('room_joined', function(data) {
@@ -456,6 +557,10 @@ function updateActiveUsers(users) {
  * 登出功能
  */
 function logout() {
+    // 清除本地存储的token
+    localStorage.removeItem('chatToken');
+    localStorage.removeItem('chatUsername');
+
     // 清除用户状态
     currentUser = null;
     currentRoomId = 'general';
@@ -490,13 +595,6 @@ function logout() {
         socket.connect();
     }, 100);
 }
-
-// WebSocket 事件监听
-
-socket.on('connect', function() {
-    console.log('已连接到服务器');
-    isConnected = true;
-});
 
 socket.on('disconnect', function() {
     console.log('与服务器断开连接');
@@ -709,6 +807,11 @@ function login() {
     .then(data => {
         document.getElementById('loginMsg').textContent = data.msg;
         if(data.success){
+            // 保存JWT到localStorage
+            if (data.token) {
+                localStorage.setItem('chatToken', data.token);
+                localStorage.setItem('chatUsername', username);
+            }
             onLoginSuccess(username);
         }
     })
@@ -851,6 +954,36 @@ document.addEventListener('DOMContentLoaded', function() {
     if (chatPanel) {
         observer.observe(chatPanel, {attributes: true});
     }
+
+    // 检查本地存储中是否有token
+    const token = localStorage.getItem('chatToken');
+    const username = localStorage.getItem('chatUsername');
+    
+    if (token && username) {
+        // 验证token有效性
+        fetch('/verify-token', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.valid) {
+                // Token有效，自动登录
+                onLoginSuccess(username);
+            } else {
+                // Token无效，清除存储
+                localStorage.removeItem('chatToken');
+                localStorage.removeItem('chatUsername');
+            }
+        })
+        .catch(err => {
+            console.error('验证token失败:', err);
+        });
+    }
+
 });
 
 /**

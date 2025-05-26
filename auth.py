@@ -1,10 +1,15 @@
-from werkzeug.security import generate_password_hash, check_password_hash# 导入werkzeug.security模块进行密码加密和校验
+import jwt
+import datetime
+import os
 
 USERS_FILE = 'data/users/users.json'# 用户数据文件路径
 
 from user import User# 导入用户类
 from user import UserManager# 导入用户管理类
 user_manager = UserManager()
+
+SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'your_default_secret_key')
+TOKEN_EXPIRATION = 1  # 小时
 
 def load_users():
     """
@@ -43,11 +48,57 @@ def register_user(username, password):
 
 def login_user(username, password):
     """
-    兼容旧接口，用户登录
+    用户登录，成功时返回JWT token
     Args:
         username (str): 用户名
         password (str): 密码
     Returns:
-        tuple: (bool, str)
+        tuple: (bool, str, str)
     """
-    return user_manager.login_user(username, password)
+    success, msg = user_manager.login_user(username, password)
+    if success:
+        # 生成JWT token
+        token = generate_token(username)
+        return True, msg, token
+    return False, msg, None
+
+def generate_token(username):
+    """
+    生成JWT token
+    Args:
+        username (str): 用户名
+    Returns:
+        str: JWT token
+    """
+    # 设置过期时间
+    expiration = datetime.datetime.utcnow() + datetime.timedelta(hours=TOKEN_EXPIRATION)
+    
+    # 创建payload
+    payload = {
+        'exp': expiration,
+        'iat': datetime.datetime.utcnow(),
+        'sub': username
+    }
+    
+    # 生成token
+    token = jwt.encode(payload, SECRET_KEY, algorithm='HS256')
+    # 根据jwt库版本，可能需要解码为字符串
+    if isinstance(token, bytes):
+        token = token.decode('utf-8')
+    return token
+
+def verify_token(token):
+    """
+    验证JWT token
+    Args:
+        token (str): JWT token
+    Returns:
+        tuple: (bool, str) - (是否有效, 用户名或错误信息)
+    """
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
+        return True, payload['sub']  # 返回有效状态和用户名
+    except jwt.ExpiredSignatureError:
+        return False, "Token已过期"
+    except jwt.InvalidTokenError:
+        return False, "无效的Token"
