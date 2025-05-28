@@ -35,16 +35,27 @@ def save_users(users):
         user_manager.users[username] = User(username, password_hash=password_hash)
     user_manager._save_users()
 
-def register_user(username, password):
+def register_user(username, password, cdkey=None):
     """
-    兼容旧接口，注册新用户
+    用户注册（需要注册密钥）
     Args:
         username (str): 用户名
         password (str): 密码
+        cdkey (str): 注册密钥
     Returns:
         tuple: (bool, str)
     """
-    return user_manager.register_user(username, password)
+    return user_manager.register_user(username, password, cdkey)
+
+def verify_cdkey(cdkey):
+    """
+    验证注册密钥是否有效
+    Args:
+        cdkey (str): 注册密钥
+    Returns:
+        bool: 密钥是否有效
+    """
+    return user_manager.verify_cdkey(cdkey)
 
 def login_user(username, password):
     """

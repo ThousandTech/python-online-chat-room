@@ -1,6 +1,7 @@
 import json# 导入json模块解析和保存json
 import os# 导入os模块进行文件操作
 from werkzeug.security import generate_password_hash, check_password_hash# 导入werkzeug.security模块进行密码加密和校验
+from cdkey_manager import CDKeyManager
 
 USERS_FILE = 'data/users/users.json'# 用户数据文件路径
 
@@ -77,6 +78,7 @@ class UserManager:
         """
         self.users_file = users_file
         self.users = {}  # 用户名 -> User对象
+        self.cdkey_manager = CDKeyManager()  # 注册密钥管理器
         self._load_users()
     
     def _load_users(self):
@@ -117,26 +119,48 @@ class UserManager:
         except Exception as e:
             print(f"保存用户数据失败: {e}")
     
-    def register_user(self, username, password):
+    def register_user(self, username, password,cdkey=None):
         """
         注册新用户
         Args:
             username (str): 用户名
             password (str): 密码
+            cdkey (str, optional): 注册密钥，如果提供则验证
         Returns:
             tuple: (bool, str)，bool表示注册是否成功，str为提示信息
         """
         if not username or not password:
             return False, "用户名或密码不能为空"
+        
+        if not cdkey:
+            return False, "注册密钥不能为空"
             
         if username in self.users:
             return False, "用户名已存在"
-            
+        
+        # 验证并消耗注册密钥
+        if not self.cdkey_manager.verify_and_consume_cdkey(cdkey):
+            return False, "注册密钥无效或已被使用"
+
         # 创建新用户并保存
         self.users[username] = User(username, password=password)
         self._save_users()
         return True, "注册成功"
     
+    def verify_cdkey(self, cdkey):
+        """
+        仅验证注册密钥是否有效（不消耗）
+        Args:
+            cdkey (str): 注册密钥
+        Returns:
+            bool: 密钥是否有效
+        """
+        if not cdkey:
+            return False
+        
+        # 使用新的验证方法
+        return self.cdkey_manager.verify_cdkey_only(cdkey)
+
     def login_user(self, username, password):
         """
         用户登录

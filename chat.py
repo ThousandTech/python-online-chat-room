@@ -50,6 +50,44 @@ def cleanup_session(sid):
             room=room_id
         )
 
+# chat.py (确保响应格式正确)
+@app.route('/verify-cdkey', methods=['POST'])
+def verify_cdkey_route():
+    """
+    验证注册密钥有效性
+    Returns:
+        json: {valid: bool, message: str}
+    """
+    try:
+        data = request.json
+        if not data:
+            return jsonify({'valid': False, 'message': '请求数据为空'}), 400
+            
+        cdkey = data.get('cdkey', '').strip().upper()
+        print(f"[DEBUG] 收到验证请求，密钥: {cdkey}")
+        
+        if not cdkey:
+            return jsonify({'valid': False, 'message': '注册密钥不能为空'})
+        
+        # 基本格式验证（10位字母数字组合）
+        if len(cdkey) != 10:
+            return jsonify({'valid': False, 'message': f'注册密钥长度不正确（当前{len(cdkey)}位，需要16位）'})
+            
+        if not cdkey.isalnum():
+            return jsonify({'valid': False, 'message': '注册密钥格式不正确（只能包含字母和数字）'})
+        
+        # 服务器端验证
+        is_valid = auth.verify_cdkey(cdkey)
+        print(f"[DEBUG] 验证结果: {is_valid}")
+        
+        if is_valid:
+            return jsonify({'valid': True, 'message': '注册密钥有效'})
+        else:
+            return jsonify({'valid': False, 'message': '注册密钥无效或已被使用'})
+            
+    except Exception as e:
+        print(f"[ERROR] 验证密钥时发生错误: {e}")
+        return jsonify({'valid': False, 'message': '服务器内部错误'}), 500
 
 def token_required(f):
     @wraps(f)
@@ -91,21 +129,20 @@ def index():
     """
     return render_template('index.html')# 返回在templates/目录下找到的index.html给客户端。
 
-@app.route('/register', methods=['POST'])# 注册路由接口'/register'，仅接受POST请求
+@app.route('/register', methods=['POST'])
 def register():
     """
     此函数用于用户注册接口调用。
-    \n接收前端 JSON 格式用户名和密码，调用 auth.register_user 完成注册。
+    接收前端 JSON 格式用户名、密码和注册密钥，调用 auth.register_user 完成注册。
     Returns:
         json: {success: bool, msg: str}
     """
-    data = request.json# 从前端获取发送过来的 JSON 数据，并转为 Python 字典
-    # json获取格式示例
-    # {
-    #   "username": "alice", 
-    #   "password": "abc123"
-    # }
-    success, msg = auth.register_user(data.get('username'), data.get('password'))
+    data = request.json
+    success, msg = auth.register_user(
+        data.get('username'), 
+        data.get('password'),
+        data.get('cdkey')
+    )
     return jsonify({"success": success, "msg": msg})
 
 @app.route('/login', methods=['POST'])

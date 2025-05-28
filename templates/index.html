@@ -23,12 +23,19 @@
         <div id="loginMsg"></div>
     </div>
 
+    <!-- index.html (确保注册区域完整) -->
     <!-- 注册区（初始隐藏） -->
     <div id="registerArea" style="display:none">
         <input id="reg_user" placeholder="新用户名">
         <input id="reg_pass" type="password" placeholder="新密码">
+       <div class="cdkey-input-group">
+            <input id="reg_cdkey" placeholder="注册密钥（16位）" maxlength="16">
+            <button id="verifyCdkeyBtn" onclick="verifyCdkey()">验证</button>
+            <div id="cdkeyStatus" class="cdkey-status"></div>
+        </div>
+        <div id="cdkeyStatus" class="cdkey-status"></div>
         <div class="register-btn-group">
-            <button onclick="register()">提交注册</button>
+            <button id="submitRegisterBtn" onclick="register()" disabled>提交注册</button>
             <button onclick="showLogin()">返回登录</button>
         </div>
         <div id="registerMsg"></div>

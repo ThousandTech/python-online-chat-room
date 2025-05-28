@@ -11,6 +11,8 @@ build/
 data/users/*.json
 data/rooms/*.json
 data/rooms/*.jsonl
+data/cdkeys/*.json
+data/cdkeys/*.txt
 
 # venv
 venv/

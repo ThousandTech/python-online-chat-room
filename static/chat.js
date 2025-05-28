@@ -10,6 +10,7 @@ var isLoadingMessages = false;
 var hasMoreMessages = true;
 var currentOffset = 0;
 let heartbeatInterval;
+var cdkeyVerified = false;
 
 // 修改socket连接处理，添加身份验证和心跳启动
 socket.on('connect', function() {
@@ -784,6 +785,146 @@ function processHistoricalMessages(messages) {
 }
 
 /**
+ * 验证注册密钥
+ */
+// chat.js (更新验证函数)
+// chat.js (修复版本的验证函数)
+// 修改验证函数以支持弹出式提示
+function verifyCdkey() {
+    const cdkeyInput = document.getElementById('reg_cdkey');
+    const cdkey = cdkeyInput.value.trim().toUpperCase();
+    const statusEl = document.getElementById('cdkeyStatus');
+    const submitBtn = document.getElementById('submitRegisterBtn');
+    const verifyBtn = document.getElementById('verifyCdkeyBtn');
+    
+    console.log('[DEBUG] 原始输入:', cdkeyInput.value);
+    console.log('[DEBUG] 处理后密钥:', cdkey);
+    console.log('[DEBUG] 密钥长度:', cdkey.length);
+    
+    // 显示提示框的函数
+    function showStatus(message, type) {
+        statusEl.textContent = message;
+        statusEl.className = `cdkey-status ${type} show`;
+        
+        // 3秒后自动隐藏
+        setTimeout(() => {
+            statusEl.classList.remove('show');
+        }, 3000);
+    }
+    
+    if (!cdkey) {
+        showStatus('请输入注册密钥', 'error');
+        return;
+    }
+    
+    // 前端基础验证
+    if (cdkey.length !== 10) {
+        showStatus(`注册密钥长度不正确（当前${cdkey.length}位，需要10位）`, 'error');
+        cdkeyVerified = false;
+        submitBtn.disabled = true;
+        return;
+    }
+    
+    if (!/^[A-Z0-9]+$/.test(cdkey)) {
+        showStatus('注册密钥格式不正确（只能包含大写字母和数字）', 'error');
+        cdkeyVerified = false;
+        submitBtn.disabled = true;
+        return;
+    }
+    
+    // 禁用验证按钮，显示验证中状态
+    verifyBtn.disabled = true;
+    verifyBtn.textContent = '验证中...';
+    showStatus('正在验证注册密钥...', 'pending');
+    
+    console.log('[DEBUG] 发送验证请求，密钥:', cdkey);
+    
+    // 向服务器验证
+    fetch('/verify-cdkey', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ cdkey: cdkey })
+    })
+    .then(response => {
+        console.log('[DEBUG] 服务器响应状态:', response.status);
+        console.log('[DEBUG] 响应头:', response.headers);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP错误: ${response.status}`);
+        }
+        
+        return response.json();
+    })
+    .then(data => {
+        console.log('[DEBUG] 服务器响应数据:', data);
+        console.log('[DEBUG] 验证结果:', data.valid);
+        console.log('[DEBUG] 消息:', data.message);
+        
+        if (data.valid === true) {
+            showStatus('✓ 注册密钥有效', 'success');
+            cdkeyVerified = true;
+            submitBtn.disabled = false;
+            console.log('[DEBUG] 验证成功，已启用注册按钮');
+        } else {
+            showStatus('✗ ' + (data.message || '密钥无效'), 'error');
+            cdkeyVerified = false;
+            submitBtn.disabled = true;
+            console.log('[DEBUG] 验证失败:', data.message);
+        }
+    })
+    .catch(err => {
+        console.error('[ERROR] 验证请求失败:', err);
+        showStatus('网络错误，请重试', 'error');
+        cdkeyVerified = false;
+        submitBtn.disabled = true;
+    })
+    .finally(() => {
+        verifyBtn.disabled = false;
+        verifyBtn.textContent = '验证';
+        console.log('[DEBUG] 验证流程完成');
+    });
+}
+
+// 修复输入框的实时处理
+document.addEventListener('DOMContentLoaded', function() {
+    const cdkeyInput = document.getElementById('reg_cdkey');
+    if (cdkeyInput) {
+        cdkeyInput.addEventListener('input', function(e) {
+            // 输入变化时重置验证状态
+            cdkeyVerified = false;
+            document.getElementById('submitRegisterBtn').disabled = true;
+            
+            // 隐藏弹出提示
+            const statusEl = document.getElementById('cdkeyStatus');
+            statusEl.classList.remove('show');
+            
+            // 转换为大写并限制输入，确保不超过10位
+            let value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+            if (value.length > 10) {
+                value = value.substring(0, 10);
+            }
+            this.value = value;
+            
+            console.log('[DEBUG] 输入框内容更新:', value);
+        });
+        
+        // 添加粘贴事件处理
+        cdkeyInput.addEventListener('paste', function(e) {
+            setTimeout(() => {
+                let value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+                if (value.length > 10) {
+                    value = value.substring(0, 10);
+                }
+                this.value = value;
+                console.log('[DEBUG] 粘贴后内容:', value);
+            }, 0);
+        });
+    }
+});
+
+/**
  * 此函数处理用户登录。
  */
 function login() {
@@ -822,37 +963,96 @@ function login() {
 }
 
 /**
- * 此函数处理用户注册。
+ * 此函数处理用户注册。(更新版本)
  */
 function register() {
+    const username = document.getElementById('reg_user').value.trim();
+    const password = document.getElementById('reg_pass').value;
+    const cdkey = document.getElementById('reg_cdkey').value.trim();
+    const msgEl = document.getElementById('registerMsg');
+    
+    if (!username || !password) {
+        msgEl.textContent = '请输入用户名和密码';
+        msgEl.style.color = '#e53e3e';
+        return;
+    }
+    
+    if (!cdkey) {
+        msgEl.textContent = '请输入注册密钥';
+        msgEl.style.color = '#e53e3e';
+        return;
+    }
+    
+    if (!cdkeyVerified) {
+        msgEl.textContent = '请先验证注册密钥';
+        msgEl.style.color = '#e53e3e';
+        return;
+    }
+    
     fetch('/register', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
-            username: document.getElementById('reg_user').value,
-            password: document.getElementById('reg_pass').value
+            username: username,
+            password: password,
+            cdkey: cdkey
         })
     })
     .then(r => r.json())
     .then(data => {
-        document.getElementById('registerMsg').textContent = data.msg;
+        msgEl.textContent = data.msg;
+        msgEl.style.color = data.success ? '#38a169' : '#e53e3e';
+        
         if(data.success){
-            showLogin();
-            // 清空注册表单
-            document.getElementById('reg_user').value = '';
-            document.getElementById('reg_pass').value = '';
+            // 注册成功，清空表单并返回登录页面
+            setTimeout(() => {
+                showLogin();
+                document.getElementById('reg_user').value = '';
+                document.getElementById('reg_pass').value = '';
+                document.getElementById('reg_cdkey').value = '';
+                document.getElementById('cdkeyStatus').textContent = '';
+                document.getElementById('submitRegisterBtn').disabled = true;
+                cdkeyVerified = false;
+            }, 1500);
         }
+    })
+    .catch(err => {
+        msgEl.textContent = '注册失败，请重试';
+        msgEl.style.color = '#e53e3e';
+        console.error('注册错误:', err);
     });
 }
 
 /**
- * 此函数显示注册页面。
+ * 显示注册页面时重置状态
  */
 function showRegister() {
     document.getElementById('loginArea').style.display = 'none';
     document.getElementById('registerArea').style.display = '';
     document.getElementById('pageTitle').style.display = '';
+    
+    // 重置注册状态
+    cdkeyVerified = false;
+    document.getElementById('submitRegisterBtn').disabled = true;
+    document.getElementById('cdkeyStatus').textContent = '';
+    document.getElementById('registerMsg').textContent = '';
 }
+
+// 添加注册密钥输入框的实时验证
+document.addEventListener('DOMContentLoaded', function() {
+    const cdkeyInput = document.getElementById('reg_cdkey');
+    if (cdkeyInput) {
+        cdkeyInput.addEventListener('input', function() {
+            // 输入变化时重置验证状态
+            cdkeyVerified = false;
+            document.getElementById('submitRegisterBtn').disabled = true;
+            document.getElementById('cdkeyStatus').textContent = '';
+            
+            // 转换为大写并限制输入
+            this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+        });
+    }
+});
 
 /**
  * 此函数显示登录页面。
